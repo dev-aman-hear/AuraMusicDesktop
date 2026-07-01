@@ -68,6 +68,20 @@ To package the application:
 gradlew assemble
 ```
 
+### Packaging and Installers (Windows)
+
+AuraMusicFX is configured with custom `jpackage` tasks to build standalone Windows installers (which bundle their own lightweight Java Runtime Environment, meaning end-users do not need Java installed on their machine):
+
+```bash
+# Generate .exe installer
+gradlew packageExe
+
+# Generate .msi installer
+gradlew packageMsi
+```
+
+The compiled installers will be generated under the `build/installer/` directory.
+
 ---
 
 ## 📁 Project Structure

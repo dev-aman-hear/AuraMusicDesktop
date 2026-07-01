@@ -36,3 +36,40 @@ tasks.withType(JavaCompile) {
 test {
     useJUnitPlatform()
 }
+
+tasks.register('packageExe', Exec) {
+    dependsOn installDist
+    group = 'distribution'
+    description = 'Packages the application as a Windows EXE installer using jpackage.'
+    commandLine 'jpackage',
+        '--input', "${buildDir}/install/AuraMusicDesktop/lib",
+        '--main-jar', 'AuraMusicDesktop-1.0-SNAPSHOT.jar',
+        '--main-class', 'aura.music.Launcher',
+        '--name', 'AuraMusicFX',
+        '--type', 'exe',
+        '--dest', "${buildDir}/installer",
+        '--win-dir-chooser',
+        '--win-menu',
+        '--win-shortcut',
+        '--vendor', 'AuraMusic',
+        '--app-version', '1.0.0'
+}
+
+tasks.register('packageMsi', Exec) {
+    dependsOn installDist
+    group = 'distribution'
+    description = 'Packages the application as a Windows MSI installer using jpackage.'
+    commandLine 'jpackage',
+        '--input', "${buildDir}/install/AuraMusicDesktop/lib",
+        '--main-jar', 'AuraMusicDesktop-1.0-SNAPSHOT.jar',
+        '--main-class', 'aura.music.Launcher',
+        '--name', 'AuraMusicFX',
+        '--type', 'msi',
+        '--dest', "${buildDir}/installer",
+        '--win-dir-chooser',
+        '--win-menu',
+        '--win-shortcut',
+        '--vendor', 'AuraMusic',
+        '--app-version', '1.0.0'
+}
+

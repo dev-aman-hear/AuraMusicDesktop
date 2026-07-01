@@ -1,0 +1,334 @@
+.root {
+    -fx-primary-text: #ffffff;
+    -fx-secondary-text: #b3b3b3;
+    -fx-bg: #121212;
+    -fx-accent-color: #0078d4;
+
+    -fx-font-family: 'Segoe UI Variable', 'Segoe UI', 'Inter', 'SF Pro Display', sans-serif;
+    -fx-text-fill: -fx-primary-text;
+    -fx-accent: -fx-accent-color;
+    -fx-background-color: -fx-bg;
+}
+
+/* Base Colors and Text */
+.text-primary {
+    -fx-text-fill: -fx-primary-text;
+}
+
+.text-secondary {
+    -fx-text-fill: -fx-secondary-text;
+}
+
+/* Sidebar Styling */
+.sidebar {
+    -fx-background-color: #181818;
+    -fx-border-color: rgba(255, 255, 255, 0.04);
+    -fx-border-width: 0 1px 0 0;
+}
+
+.sidebar-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-padding: 10px 14px;
+    -fx-cursor: hand;
+    -fx-text-fill: -fx-secondary-text;
+    -fx-font-weight: 500;
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.sidebar-item:hover {
+    -fx-background-color: #2a2a2a;
+    -fx-text-fill: #ffffff;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+.sidebar-item-active {
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: -fx-accent;
+    -fx-border-width: 0 0 0 4px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 120, 212, 0.3), 10, 0, 0, 0);
+}
+
+/* Custom Text Field / Search Box */
+.text-field {
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-text-fill: white;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 1px;
+    -fx-padding: 8px 12px;
+    -fx-transition: all 0.2s ease;
+}
+
+.text-field:focused {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-border-color: -fx-accent;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 120, 212, 0.2), 10, 0, 0, 0);
+}
+
+/* Premium Glassmorphic Cards and Panels */
+.glass-panel {
+    -fx-background-color: -fx-player-bar-bg;
+    -fx-background-radius: 16px;
+    -fx-border-color: -fx-custom-border-color;
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.25), 25, 0, 0, 15);
+}
+
+.card {
+    -fx-background-color: -fx-card-bg;
+    -fx-background-radius: 14px;
+    -fx-border-radius: 14px;
+    -fx-border-color: -fx-custom-border-color;
+    -fx-border-width: 1px;
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    -fx-background-color: rgba(127, 127, 127, 0.15);
+    -fx-border-color: -fx-accent;
+    -fx-scale-x: 1.03;
+    -fx-scale-y: 1.03;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.35), 15, 0, 8, 8);
+}
+
+.player-bar {
+    -fx-background-color: -fx-player-bar-bg;
+    -fx-border-color: -fx-custom-border-color;
+    -fx-border-width: 0 0 1px 0;
+}
+
+/* Buttons and Controls */
+.icon-button {
+    -fx-background-color: transparent;
+    -fx-cursor: hand;
+    -fx-background-radius: 50%;
+    -fx-padding: 8px;
+    -fx-transition: all 0.2s ease;
+}
+
+.icon-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-scale-x: 1.08;
+    -fx-scale-y: 1.08;
+}
+
+.play-button {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 50%;
+    -fx-padding: 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 255, 0.2), 10, 0, 0, 0);
+}
+
+.play-button:hover {
+    -fx-background-color: #f0f0f0;
+    -fx-scale-x: 1.06;
+    -fx-scale-y: 1.06;
+    -fx-effect: dropshadow(three-pass-box, -fx-accent, 15, 0, 0, 0);
+}
+
+/* Sliders */
+.premium-slider .track {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 3px;
+    -fx-pref-height: 4px;
+}
+
+.premium-slider:hover .track {
+    -fx-pref-height: 6px;
+}
+
+.premium-slider .bar {
+    -fx-background-color: -fx-accent;
+    -fx-background-radius: 3px;
+}
+
+.premium-slider .thumb {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 50%;
+    -fx-pref-width: 0px;
+    -fx-pref-height: 0px;
+    -fx-transition: all 0.15s ease;
+}
+
+.premium-slider:hover .thumb {
+    -fx-pref-width: 12px;
+    -fx-pref-height: 12px;
+}
+
+/* Custom Scrollbars */
+.scroll-bar:vertical, .scroll-bar:horizontal {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar:vertical {
+    -fx-pref-width: 6px;
+}
+
+.scroll-bar:horizontal {
+    -fx-pref-height: 6px;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: rgba(255, 255, 255, 0.15);
+    -fx-background-radius: 4px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.3);
+}
+
+.scroll-bar .track,
+.scroll-bar .decrement-button,
+.scroll-bar .increment-button {
+    -fx-background-color: transparent;
+}
+
+/* Lists and Tables */
+.list-view {
+    -fx-background-color: transparent;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-primary-text;
+    -fx-padding: 10px 14px;
+    -fx-background-radius: 8px;
+    -fx-transition: all 0.15s ease;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: rgba(127, 127, 127, 0.15);
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: rgba(127, 127, 127, 0.25);
+    -fx-border-color: -fx-accent;
+    -fx-border-width: 0 0 0 3px;
+}
+
+/* Lyrics Styling */
+.lyric-line-label {
+    -fx-font-size: 26px;
+    -fx-font-weight: 700;
+    -fx-text-fill: rgba(255, 255, 255, 0.3);
+    -fx-transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    -fx-padding: 8px 0;
+}
+
+.lyric-line-active {
+    -fx-text-fill: #ffffff;
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 255, 0.25), 10, 0, 0, 0);
+}
+
+.lyric-line-past {
+    -fx-text-fill: rgba(255, 255, 255, 0.15);
+}
+
+/* Badges */
+.quality-badge {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-text-fill: -fx-accent;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 4px 10px;
+    -fx-background-radius: 6px;
+    -fx-border-color: rgba(0, 120, 212, 0.4);
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 120, 212, 0.2), 6, 0, 0, 0);
+}
+
+/* LCD Capsule Progress Slider */
+.lcd-progress-slider {
+    -fx-padding: 0;
+}
+.lcd-progress-slider .track {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 0 0 6px 6px;
+    -fx-pref-height: 2px;
+}
+.lcd-progress-slider .bar {
+    -fx-background-color: rgba(255, 255, 255, 0.6);
+    -fx-background-radius: 0 0 0 6px;
+}
+.lcd-progress-slider .thumb {
+    -fx-background-color: transparent;
+    -fx-pref-width: 0px;
+    -fx-pref-height: 0px;
+}
+
+/* Window Controls */
+.window-control {
+    -fx-background-radius: 50%;
+    -fx-min-width: 12px;
+    -fx-min-height: 12px;
+    -fx-max-width: 12px;
+    -fx-max-height: 12px;
+    -fx-cursor: hand;
+    -fx-border-radius: 50%;
+    -fx-border-width: 1px;
+    -fx-padding: 0;
+    -fx-transition: all 0.2s ease;
+}
+
+.window-control-minimize {
+    -fx-background-color: #ffbd2e;
+    -fx-border-color: #e0a31a;
+}
+.window-control-minimize:hover {
+    -fx-background-color: #ffcb53;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 189, 46, 0.4), 6, 0, 0, 0);
+}
+
+.window-control-maximize {
+    -fx-background-color: #27c93f;
+    -fx-border-color: #1a9c2b;
+}
+.window-control-maximize:hover {
+    -fx-background-color: #42db58;
+    -fx-effect: dropshadow(three-pass-box, rgba(39, 201, 63, 0.4), 6, 0, 0, 0);
+}
+
+.window-control-close {
+    -fx-background-color: #ff5f56;
+    -fx-border-color: #e0443e;
+}
+.window-control-close:hover {
+    -fx-background-color: #ff7c75;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 95, 86, 0.4), 6, 0, 0, 0);
+}
+
+/* Volume Popup Slider */
+.volume-popup-slider {
+    -fx-pref-width: 140px;
+}
+.volume-popup-slider .track {
+    -fx-background-color: rgba(255, 255, 255, 0.15);
+    -fx-background-radius: 3px;
+    -fx-pref-height: 4px;
+}
+.volume-popup-slider .bar {
+    -fx-background-color: #ff2d55;
+    -fx-background-radius: 3px;
+}
+.volume-popup-slider .thumb {
+    -fx-background-color: #ff2d55;
+    -fx-background-radius: 50%;
+    -fx-pref-width: 12px;
+    -fx-pref-height: 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 45, 85, 0.4), 4, 0, 0, 0);
+    -fx-cursor: hand;
+}
+.volume-popup-slider .thumb:hover {
+    -fx-scale-x: 1.25;
+    -fx-scale-y: 1.25;
+}
+
+

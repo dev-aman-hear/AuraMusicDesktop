@@ -18,18 +18,24 @@ public class LibraryManager {
     private final List<Song> songs = new CopyOnWriteArrayList<>();
     private final List<Playlist> playlists = new CopyOnWriteArrayList<>();
     private final Set<String> watchedFolders = new ConcurrentSkipListSet<>();
-    
+
     private final Map<String, Song> songMap = new ConcurrentHashMap<>();
     private final ExecutorService scanExecutor = Executors.newFixedThreadPool(
-            Math.max(2, Runtime.getRuntime().availableProcessors() - 1)
-    );
-    
+            Math.max(2, Runtime.getRuntime().availableProcessors() - 1),
+            r -> {
+                Thread t = new Thread(r);
+                t.setDaemon(true);
+                t.setName("AuraMusic-ScanWorker");
+                return t;
+            });
+
     private final String appDataPath;
     private final String libraryCacheFile;
     private final String playlistsFile;
     private final String settingsFile;
     // New username field with default
-    private final javafx.beans.property.SimpleStringProperty usernameProperty = new javafx.beans.property.SimpleStringProperty("Master");
+    private final javafx.beans.property.SimpleStringProperty usernameProperty = new javafx.beans.property.SimpleStringProperty(
+            "Master");
 
     private WatchService watchService;
     private final Map<WatchKey, Path> watchKeys = new ConcurrentHashMap<>();
@@ -39,16 +45,19 @@ public class LibraryManager {
     public String getUsername() {
         return usernameProperty.get();
     }
+
     public void setUsername(String username) {
         usernameProperty.set(username);
         saveSettings();
     }
+
     public javafx.beans.property.StringProperty usernameProperty() {
         return usernameProperty;
     }
 
     public interface LibraryListener {
         void onSongAdded(Song song);
+
         void onSongRemoved(Song song);
     }
 
@@ -66,7 +75,7 @@ public class LibraryManager {
         String userHome = System.getProperty("user.home");
         appDataPath = userHome + File.separator + ".auramusic";
         new File(appDataPath).mkdirs();
-        
+
         libraryCacheFile = appDataPath + File.separator + "library_cache.json";
         playlistsFile = appDataPath + File.separator + "playlists.json";
         settingsFile = appDataPath + File.separator + "settings.json";
@@ -83,9 +92,17 @@ public class LibraryManager {
         return instance;
     }
 
-    public List<Song> getSongs() { return songs; }
-    public List<Playlist> getPlaylists() { return playlists; }
-    public Set<String> getWatchedFolders() { return watchedFolders; }
+    public List<Song> getSongs() {
+        return songs;
+    }
+
+    public List<Playlist> getPlaylists() {
+        return playlists;
+    }
+
+    public Set<String> getWatchedFolders() {
+        return watchedFolders;
+    }
 
     public void addWatchedFolder(String path) {
         if (watchedFolders.add(path)) {
@@ -115,9 +132,9 @@ public class LibraryManager {
         scanExecutor.submit(() -> {
             List<Song> scannedSongs = new ArrayList<>();
             scanFolderRecursive(folder, scannedSongs);
-            
+
             boolean changed = false;
-            
+
             // 1. Add new or updated songs
             for (Song song : scannedSongs) {
                 Song existing = songMap.get(song.getPath());
@@ -136,17 +153,17 @@ public class LibraryManager {
                     changed = true;
                 }
             }
-            
+
             // 2. Remove songs that no longer exist under this folder
             String folderPath = folder.getAbsolutePath();
             java.util.Set<String> scannedPaths = scannedSongs.stream()
                     .map(Song::getPath)
                     .collect(Collectors.toSet());
-                    
+
             List<Song> toRemove = songs.stream()
                     .filter(s -> s.getPath().startsWith(folderPath) && !scannedPaths.contains(s.getPath()))
                     .collect(Collectors.toList());
-                    
+
             if (!toRemove.isEmpty()) {
                 songs.removeAll(toRemove);
                 toRemove.forEach(s -> {
@@ -155,7 +172,7 @@ public class LibraryManager {
                 });
                 changed = true;
             }
-            
+
             if (changed) {
                 saveLibraryToCache();
             }
@@ -164,7 +181,8 @@ public class LibraryManager {
 
     private void scanFolderRecursive(File folder, List<Song> scannedSongs) {
         File[] files = folder.listFiles();
-        if (files == null) return;
+        if (files == null)
+            return;
 
         for (File file : files) {
             if (file.isDirectory()) {
@@ -218,10 +236,12 @@ public class LibraryManager {
 
     private void loadLibraryFromCache() {
         File file = new File(libraryCacheFile);
-        if (!file.exists()) return;
+        if (!file.exists())
+            return;
 
         try (Reader reader = new FileReader(file)) {
-            List<Song> cached = new Gson().fromJson(reader, new TypeToken<List<Song>>(){}.getType());
+            List<Song> cached = new Gson().fromJson(reader, new TypeToken<List<Song>>() {
+            }.getType());
             if (cached != null) {
                 songs.addAll(cached);
                 for (Song s : songs) {
@@ -258,10 +278,12 @@ public class LibraryManager {
 
     private void loadPlaylists() {
         File file = new File(playlistsFile);
-        if (!file.exists()) return;
+        if (!file.exists())
+            return;
 
         try (Reader reader = new FileReader(file)) {
-            List<Playlist> loaded = new Gson().fromJson(reader, new TypeToken<List<Playlist>>(){}.getType());
+            List<Playlist> loaded = new Gson().fromJson(reader, new TypeToken<List<Playlist>>() {
+            }.getType());
             if (loaded != null) {
                 playlists.addAll(loaded);
             }
@@ -284,7 +306,8 @@ public class LibraryManager {
 
     public void loadSettings() {
         File file = new File(settingsFile);
-        if (!file.exists()) return;
+        if (!file.exists())
+            return;
 
         try (Reader reader = new FileReader(file)) {
             com.google.gson.JsonElement json = com.google.gson.JsonParser.parseReader(reader);
@@ -322,7 +345,7 @@ public class LibraryManager {
         try {
             watchService = FileSystems.getDefault().newWatchService();
             watching = true;
-            
+
             Thread watchThread = new Thread(this::watchLoop);
             watchThread.setDaemon(true);
             watchThread.setName("AuraMusic-FolderWatcher");
@@ -333,17 +356,19 @@ public class LibraryManager {
     }
 
     private void registerWatchDir(Path dir) {
-        if (watchService == null) return;
+        if (watchService == null)
+            return;
         try {
             // Register recursively
             Files.walk(dir).forEach(path -> {
                 if (Files.isDirectory(path)) {
                     try {
-                        WatchKey key = path.register(watchService, 
-                                StandardWatchEventKinds.ENTRY_CREATE, 
+                        WatchKey key = path.register(watchService,
+                                StandardWatchEventKinds.ENTRY_CREATE,
                                 StandardWatchEventKinds.ENTRY_DELETE);
                         watchKeys.put(key, path);
-                    } catch (IOException ignored) {}
+                    } catch (IOException ignored) {
+                    }
                 }
             });
         } catch (IOException e) {
@@ -356,11 +381,18 @@ public class LibraryManager {
             try {
                 WatchKey key = watchService.take();
                 Path dir = watchKeys.get(key);
-                if (dir == null) continue;
+                if (dir == null)
+                    continue;
 
                 for (WatchEvent<?> event : key.pollEvents()) {
                     WatchEvent.Kind<?> kind = event.kind();
+                    if (kind == StandardWatchEventKinds.OVERFLOW) {
+                        continue;
+                    }
                     Path name = (Path) event.context();
+                    if (name == null) {
+                        continue;
+                    }
                     Path child = dir.resolve(name);
 
                     if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
@@ -368,7 +400,7 @@ public class LibraryManager {
                             scanExecutor.submit(() -> registerWatchDir(child));
                         } else if (isAudioFile(child.toString())) {
                             Song newSong = MetadataExtractor.extract(child.toFile());
-                            if (!songMap.containsKey(newSong.getPath())) {
+                            if (newSong != null && !songMap.containsKey(newSong.getPath())) {
                                 songs.add(newSong);
                                 songMap.put(newSong.getPath(), newSong);
                                 listeners.forEach(l -> l.onSongAdded(newSong));
@@ -384,14 +416,20 @@ public class LibraryManager {
                         }
                     }
                 }
-                
-                boolean valid = key.reset();
 
+                if (!key.reset()) {
+                    watchKeys.remove(key);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
+            } catch (java.nio.file.ClosedWatchServiceException e) {
+                // Occurs normally during application shutdown/close
+                break;
             } catch (Exception e) {
-                System.err.println("Error in watch loop: " + e.getMessage());
+                if (watching) {
+                    System.err.println("Error in watch loop: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getName()));
+                }
             }
         }
     }
@@ -402,7 +440,8 @@ public class LibraryManager {
         if (watchService != null) {
             try {
                 watchService.close();
-            } catch (IOException ignored) {}
+            } catch (IOException ignored) {
+            }
         }
     }
 }

@@ -35,7 +35,6 @@ public class FullScreenPlayer extends StackPane {
 
     private final MainViewModel viewModel;
     private final Runnable onClose;
-    private final Runnable onExitFullScreen;
 
     // Background
     private final ImageView bgImageView;
@@ -78,7 +77,6 @@ public class FullScreenPlayer extends StackPane {
     public FullScreenPlayer(MainViewModel viewModel, Runnable onClose, Runnable onExitFullScreen) {
         this.viewModel = viewModel;
         this.onClose = onClose;
-        this.onExitFullScreen = onExitFullScreen;
 
         getStylesheets().add(getClass().getResource("/aura/music/styles.css").toExternalForm());
 
@@ -146,7 +144,6 @@ public class FullScreenPlayer extends StackPane {
             }
         });
 
-
         // Setup Floating Animation
         setupFloatingAnimation();
 
@@ -211,7 +208,8 @@ public class FullScreenPlayer extends StackPane {
         speakerBtn.setOnAction(e -> viewModel.isMutedProperty().set(!viewModel.isMutedProperty().get()));
 
         Button optionsBtn = new Button("•••");
-        optionsBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;");
+        optionsBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;");
 
         HBox leftBottom = new HBox(15, speakerBtn, optionsBtn);
         leftBottom.setAlignment(Pos.CENTER_LEFT);
@@ -242,10 +240,11 @@ public class FullScreenPlayer extends StackPane {
         HBox.setHgrow(rightCol, Priority.ALWAYS);
 
         LyricsView lyricsView = new LyricsView(viewModel);
-        
+
         ListView<Song> queueListView = new ListView<>(viewModel.getQueue());
         VBox.setVgrow(queueListView, Priority.ALWAYS);
-        queueListView.setStyle("-fx-background-color: transparent; -fx-control-inner-background: transparent; -fx-background: transparent; -fx-border-color: transparent;");
+        queueListView.setStyle(
+                "-fx-background-color: transparent; -fx-control-inner-background: transparent; -fx-background: transparent; -fx-border-color: transparent;");
         queueListView.setCellFactory(lv -> new javafx.scene.control.ListCell<Song>() {
             @Override
             protected void updateItem(Song item, boolean empty) {
@@ -291,17 +290,18 @@ public class FullScreenPlayer extends StackPane {
         topBar.setPickOnBounds(false); // Make container click-through
         topBar.setAlignment(Pos.TOP_RIGHT);
         topBar.setPadding(new Insets(20));
-        
+
         Button exitFsBtnTop = new Button();
         exitFsBtnTop.setGraphic(SVGIcons.createExitFullScreenIcon(14, Color.WHITE));
         exitFsBtnTop.getStyleClass().add("icon-button");
         exitFsBtnTop.setOnAction(e -> onExitFullScreen.run());
 
         Button closeBtnTop = new Button();
-        closeBtnTop.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand; -fx-padding: 4;");
+        closeBtnTop.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand; -fx-padding: 4;");
         closeBtnTop.setText("✕");
         closeBtnTop.setOnAction(e -> onClose.run());
-        
+
         topBar.getChildren().addAll(exitFsBtnTop, closeBtnTop);
 
         splitLayout.getChildren().addAll(leftCol, rightCol);
@@ -335,7 +335,7 @@ public class FullScreenPlayer extends StackPane {
             if (oldScene != null) {
                 oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPress);
                 oldScene.removeEventFilter(ScrollEvent.SCROLL, this::handleScrollVolume);
-                
+
                 viewModel.currentSongProperty().removeListener(songListener);
                 viewModel.isPlayingProperty().removeListener(playListener);
                 viewModel.currentTimeProperty().removeListener(timeListener);
@@ -422,11 +422,11 @@ public class FullScreenPlayer extends StackPane {
             return;
         Platform.runLater(() -> {
             titleContainer.getChildren().setAll(
-                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(), "-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;", 400)
-            );
+                    aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(),
+                            "-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;", 400));
             artistContainer.getChildren().setAll(
-                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist() + " • " + song.getAlbum(), "-fx-font-size: 16px; -fx-text-fill: rgba(255,255,255,0.75); -fx-font-weight: 500;", 440)
-            );
+                    aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist() + " • " + song.getAlbum(),
+                            "-fx-font-size: 16px; -fx-text-fill: rgba(255,255,255,0.75); -fx-font-weight: 500;", 440));
 
             updateFavoriteButtonState(song);
 

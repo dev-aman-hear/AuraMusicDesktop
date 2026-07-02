@@ -33,37 +33,39 @@ public class MarqueeUtils {
             clip.setHeight(newVal.doubleValue());
         });
 
-        // Use a listener on label1's width to decide whether to marquee
-        label1.widthProperty().addListener((obs, oldVal, newVal) -> {
-            double textWidth = newVal.doubleValue();
-            if (textWidth > maxWidth) {
-                // Duplicate the label for seamless looping
-                Label label2 = new Label(text);
-                label2.setStyle(style);
-                label2.setWrapText(false);
-                label2.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+        // One-time listener to prevent infinite layout recalculation loops
+        label1.widthProperty().addListener(new javafx.beans.value.ChangeListener<Number>() {
+            @Override
+            public void changed(javafx.beans.value.ObservableValue<? extends Number> obs, Number oldVal, Number newVal) {
+                double textWidth = newVal.doubleValue();
+                if (textWidth > 0) {
+                    label1.widthProperty().removeListener(this);
+                    if (textWidth > maxWidth) {
+                        Label label2 = new Label(text);
+                        label2.setStyle(style);
+                        label2.setWrapText(false);
+                        label2.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
 
-                // HBox to hold both labels with a gap
-                double gap = 50.0;
-                HBox hbox = new HBox(gap, label1, label2);
-                hbox.setAlignment(Pos.CENTER_LEFT);
-                hbox.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+                        double gap = 50.0;
+                        HBox hbox = new HBox(gap, label1, label2);
+                        hbox.setAlignment(Pos.CENTER_LEFT);
+                        hbox.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
 
-                container.getChildren().setAll(hbox);
+                        container.getChildren().setAll(hbox);
 
-                // Scroll distance is the width of one label + the gap
-                double scrollDist = textWidth + gap;
+                        double scrollDist = textWidth + gap;
 
-                TranslateTransition transition = new TranslateTransition(
-                        Duration.seconds(scrollDist / 20.0), hbox); // 20px/sec speed
-                transition.setFromX(0);
-                transition.setToX(-scrollDist);
-                transition.setInterpolator(Interpolator.LINEAR); // Constant speed
-                transition.setCycleCount(Animation.INDEFINITE);
-                transition.play();
-            } else {
-                // If it fits, just display the single label normally
-                container.getChildren().setAll(label1);
+                        TranslateTransition transition = new TranslateTransition(
+                                Duration.seconds(scrollDist / 30.0), hbox); // Smooth speed
+                        transition.setFromX(0);
+                        transition.setToX(-scrollDist);
+                        transition.setInterpolator(Interpolator.LINEAR);
+                        transition.setCycleCount(Animation.INDEFINITE);
+                        transition.play();
+                    } else {
+                        container.getChildren().setAll(label1);
+                    }
+                }
             }
         });
 

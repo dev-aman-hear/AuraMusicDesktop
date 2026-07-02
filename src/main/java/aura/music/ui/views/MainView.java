@@ -1,7 +1,6 @@
 package aura.music.ui.views;
 
 import aura.music.library.LibraryManager;
-import javafx.beans.binding.Bindings;
 import aura.music.model.Song;
 import aura.music.theme.ThemeEngine;
 import aura.music.ui.components.LyricsView;
@@ -175,7 +174,11 @@ public class MainView extends StackPane {
         albumDetailView = new AlbumDetailView(viewModel);
 
         // Create Settings View
-        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled);
+        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled, () -> {
+            if (playlistView != null) {
+                playlistView.refreshPlaylists();
+            }
+        });
 
         // Create Playlist View
         playlistView = new PlaylistView(viewModel);
@@ -532,19 +535,15 @@ public class MainView extends StackPane {
             return;
         albumsGridPane.getChildren().clear();
         java.util.Set<String> seenAlbums = new java.util.HashSet<>();
-        int index = 0;
+        java.util.List<Song> albumSongs = new java.util.ArrayList<>();
         for (Song song : viewModel.getLibrarySongs()) {
             String album = song.getAlbum();
             if (album != null && !album.isEmpty() && seenAlbums.add(album)) {
-                Pane card = createGridItemCard(album, song.getArtist(), song.getPath(), () -> {
-                    showAlbumDetail(album);
-                });
-                albumsGridPane.add(card, 0, 0);
-                index++;
+                albumSongs.add(song);
             }
         }
         isAlbumsGridPopulated = true;
-        layoutGridResponsively(albumsGridPane, albumsScrollPane.getWidth());
+        populateGridChunked(albumsGridPane, albumSongs, 0, 20, albumsScrollPane, "album");
     }
 
     private void populateArtistsGrid() {
@@ -552,19 +551,15 @@ public class MainView extends StackPane {
             return;
         artistsGridPane.getChildren().clear();
         java.util.Set<String> seenArtists = new java.util.HashSet<>();
-        int index = 0;
+        java.util.List<Song> artistSongs = new java.util.ArrayList<>();
         for (Song song : viewModel.getLibrarySongs()) {
             String artist = song.getArtist();
             if (artist != null && !artist.isEmpty() && seenArtists.add(artist)) {
-                Pane card = createGridItemCard(artist, "Artist", song.getPath(), () -> {
-                    showArtistDetail(artist);
-                });
-                artistsGridPane.add(card, 0, 0);
-                index++;
+                artistSongs.add(song);
             }
         }
         isArtistsGridPopulated = true;
-        layoutGridResponsively(artistsGridPane, artistsScrollPane.getWidth());
+        populateGridChunked(artistsGridPane, artistSongs, 0, 20, artistsScrollPane, "artist");
     }
 
     private void populateGenresGrid() {
@@ -572,19 +567,53 @@ public class MainView extends StackPane {
             return;
         genresGridPane.getChildren().clear();
         java.util.Set<String> seenGenres = new java.util.HashSet<>();
-        int index = 0;
+        java.util.List<Song> genreSongs = new java.util.ArrayList<>();
         for (Song song : viewModel.getLibrarySongs()) {
             String genre = song.getGenre();
             if (genre != null && !genre.isEmpty() && seenGenres.add(genre)) {
-                Pane card = createGridItemCard(genre, "Genre", song.getPath(), () -> {
-                    selectGenre(genre);
-                });
-                genresGridPane.add(card, 0, 0);
-                index++;
+                genreSongs.add(song);
             }
         }
         isGenresGridPopulated = true;
-        layoutGridResponsively(genresGridPane, genresScrollPane.getWidth());
+        populateGridChunked(genresGridPane, genreSongs, 0, 20, genresScrollPane, "genre");
+    }
+
+    private void populateGridChunked(GridPane gridPane, java.util.List<Song> songs, int startIndex, int chunkSize,
+            ScrollPane scrollPane, String type) {
+        if (startIndex >= songs.size()) {
+            layoutGridResponsively(gridPane, scrollPane.getWidth());
+            return;
+        }
+
+        int endIndex = Math.min(startIndex + chunkSize, songs.size());
+        for (int i = startIndex; i < endIndex; i++) {
+            Song song = songs.get(i);
+            if (type.equals("album")) {
+                String album = song.getAlbum();
+                Pane card = createGridItemCard(album, song.getArtist(), song.getPath(), () -> {
+                    showAlbumDetail(album);
+                });
+                gridPane.add(card, 0, 0);
+            } else if (type.equals("artist")) {
+                String artist = song.getArtist();
+                Pane card = createGridItemCard(artist, "", song.getPath(), () -> {
+                    showArtistDetail(artist);
+                });
+                gridPane.add(card, 0, 0);
+            } else if (type.equals("genre")) {
+                String genre = song.getGenre();
+                Pane card = createGridItemCard(genre, "", song.getPath(), () -> {
+                    selectGenre(genre);
+                });
+                gridPane.add(card, 0, 0);
+            }
+        }
+
+        layoutGridResponsively(gridPane, scrollPane.getWidth());
+
+        Platform.runLater(() -> {
+            populateGridChunked(gridPane, songs, endIndex, chunkSize, scrollPane, type);
+        });
     }
 
     private void layoutGridResponsively(GridPane gridPane, double containerWidth) {
@@ -673,13 +702,15 @@ public class MainView extends StackPane {
         titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
         titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
         titleLabel.setMaxWidth(Double.MAX_VALUE);
+        card.getChildren().addAll(artContainer, titleLabel);
 
-        Label artistLabel = new Label(subtitle);
-        artistLabel.setStyle("-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 12px;");
-        artistLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
-        artistLabel.setMaxWidth(Double.MAX_VALUE);
-
-        card.getChildren().addAll(artContainer, titleLabel, artistLabel);
+        if (subtitle != null && !subtitle.isEmpty()) {
+            Label artistLabel = new Label(subtitle);
+            artistLabel.setStyle("-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 12px;");
+            artistLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+            artistLabel.setMaxWidth(Double.MAX_VALUE);
+            card.getChildren().add(artistLabel);
+        }
 
         // Smooth hover animation using ScaleTransition
         javafx.animation.ScaleTransition hoverScale = new javafx.animation.ScaleTransition(Duration.millis(180),
@@ -733,17 +764,10 @@ public class MainView extends StackPane {
         logo = new Label("Aura Music");
         logo.setStyle("-fx-font-size: 16px; -fx-font-weight: 800; -fx-text-fill: white;");
 
-        // Button optionsBtn = new Button("•••");
-        // optionsBtn.setStyle(
-        // "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6);
-        // -fx-font-size: 12px; -fx-cursor: hand;");
-
         // Set initial back button visibility
         updateBackBtnVisibility();
         logo.visibleProperty().bind(sidebarExpanded);
         logo.managedProperty().bind(sidebarExpanded);
-        // optionsBtn.visibleProperty().bind(sidebarExpanded);
-        // optionsBtn.managedProperty().bind(sidebarExpanded);
 
         logoContainer.getChildren().addAll(toggleSidebarBtn, logo); // , optionsBtn
         sidebar.getChildren().add(logoContainer);
@@ -839,10 +863,6 @@ public class MainView extends StackPane {
         }
 
         // Bind visibility of secondary items to sidebarExpanded to keep collapsed view
-        // clean
-
-        // settingsBtn bindings removed
-
         // Add Folder Button
         addFolderBtn = new Button("+ Add Folder");
         addFolderBtn.setStyle(
@@ -1324,7 +1344,7 @@ public class MainView extends StackPane {
 
     private void setupPremiumQueueListView(ListView<Song> listView) {
         listView.setStyle(
-                "-fx-background-color: transparent; -fx-background: transparent; -fx-control-inner-background: transparent; -fx-border-color: transparent;");
+                "-fx-background-color: transparent; -fx-background: transparent; -fx-control-inner-background: transparent; -fx-border-color: transparent; -fx-hbar-policy: never;");
         VBox.setVgrow(listView, Priority.ALWAYS);
         listView.managedProperty().bind(listView.visibleProperty());
         listView.setCellFactory(lv -> new ListCell<Song>() {
@@ -1348,7 +1368,13 @@ public class MainView extends StackPane {
                 artView.setClip(clip);
 
                 songTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-primary-text; -fx-font-size: 13px;");
+                songTitle.setTextOverrun(OverrunStyle.ELLIPSIS);
+                songTitle.setMaxWidth(210);
+
                 songDetails.setStyle("-fx-text-fill: -fx-secondary-text; -fx-font-size: 11px;");
+                songDetails.setTextOverrun(OverrunStyle.ELLIPSIS);
+                songDetails.setMaxWidth(210);
+
                 textContainer.getChildren().addAll(songTitle, songDetails);
                 textContainer.setAlignment(Pos.CENTER_LEFT);
                 HBox.setHgrow(textContainer, Priority.ALWAYS);
@@ -1364,9 +1390,6 @@ public class MainView extends StackPane {
                 if (empty || item == null) {
                     setGraphic(null);
                 } else {
-                    songTitle.setText(item.getTitle());
-                    songDetails.setText(item.getArtist() + " — " + item.getAlbum());
-
                     int minutes = (int) (item.getDuration() / 60);
                     int secs = (int) (item.getDuration() % 60);
                     songDuration.setText(String.format("%d:%02d", minutes, secs));
@@ -1381,12 +1404,19 @@ public class MainView extends StackPane {
                     }
                     artView.setImage(cachedImage);
 
-                    // Highlight currently playing song in the queue
+                    textContainer.getChildren().clear();
+
+                    // Highlight currently playing song in the queue with scrolling marquee
                     if (viewModel.currentSongProperty().get() == item) {
-                        songTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-accent; -fx-font-size: 13px;");
+                        javafx.scene.Node titleMarquee = aura.music.ui.MarqueeUtils.createMarqueeLabel(item.getTitle(),
+                                "-fx-font-weight: bold; -fx-text-fill: -fx-accent; -fx-font-size: 13px;", 210);
+                        javafx.scene.Node detailsMarquee = aura.music.ui.MarqueeUtils.createMarqueeLabel(item.getArtist() + " — " + item.getAlbum(),
+                                "-fx-text-fill: -fx-accent; -fx-opacity: 0.8; -fx-font-size: 11px;", 210);
+                        textContainer.getChildren().addAll(titleMarquee, detailsMarquee);
                     } else {
-                        songTitle.setStyle(
-                                "-fx-font-weight: bold; -fx-text-fill: -fx-primary-text; -fx-font-size: 13px;");
+                        songTitle.setText(item.getTitle());
+                        songDetails.setText(item.getArtist() + " — " + item.getAlbum());
+                        textContainer.getChildren().addAll(songTitle, songDetails);
                     }
 
                     setGraphic(cellLayout);
@@ -1719,6 +1749,7 @@ public class MainView extends StackPane {
         Button closeBtn = new Button();
         closeBtn.getStyleClass().addAll("window-control", "window-control-close");
         closeBtn.setOnAction(e -> {
+            viewModel.savePlaybackState();
             LibraryManager.getInstance().shutdown();
             System.exit(0);
         });
@@ -1751,7 +1782,7 @@ public class MainView extends StackPane {
         }
     }
 
-    private void showRightPanel(String type) {
+    void showRightPanel(String type) {
         boolean isLyrics = type.equalsIgnoreCase("lyrics");
 
         if (isLyrics) {
@@ -2118,8 +2149,6 @@ public class MainView extends StackPane {
         String accentHex = toHexString(accentCol);
         String primaryHex = toHexString(primaryCol);
         String secondaryHex = toHexString(secondaryCol);
-        String sbHex = toHexString(sbCol);
-
         boolean light = themeEngine.lightModeProperty().get();
 
         String playerBarBg = light ? "rgba(255, 255, 255, 0.85)" : "rgba(24, 24, 24, 0.85)";

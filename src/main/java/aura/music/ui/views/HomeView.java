@@ -99,9 +99,12 @@ public class HomeView extends ScrollPane {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button rollBtn = new Button("🎲");
-        rollBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;");
-        rollBtn.setOnMouseEntered(e -> rollBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;"));
-        rollBtn.setOnMouseExited(e -> rollBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;"));
+        rollBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;");
+        rollBtn.setOnMouseEntered(e -> rollBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;"));
+        rollBtn.setOnMouseExited(e -> rollBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;"));
         rollBtn.setOnMouseClicked(e -> pickNewRandomSong());
 
         headerRow.getChildren().addAll(sectionTitle, spacer, rollBtn);
@@ -197,11 +200,11 @@ public class HomeView extends ScrollPane {
         }
 
         randomTitleContainer.getChildren().setAll(
-            aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(), "-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;", 240)
-        );
+                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(),
+                        "-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;", 240));
         randomArtistContainer.getChildren().setAll(
-            aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(), "-fx-text-fill: rgba(255, 255, 255, 0.6); -fx-font-size: 14px;", 240)
-        );
+                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(),
+                        "-fx-text-fill: rgba(255, 255, 255, 0.6); -fx-font-size: 14px;", 240));
 
         byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
         randomArtContainer.getChildren().clear();
@@ -308,8 +311,10 @@ public class HomeView extends ScrollPane {
         DropShadow shadow = new DropShadow(10, Color.rgb(0, 0, 0, 0.3));
         artContainer.setEffect(shadow);
 
-        javafx.scene.Node titleLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(title, "-fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold;", 140);
-        javafx.scene.Node artistLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(artist, "-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 11px;", 140);
+        javafx.scene.Node titleLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(title,
+                "-fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold;", 140);
+        javafx.scene.Node artistLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(artist,
+                "-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 11px;", 140);
 
         card.getChildren().addAll(artContainer, titleLabel, artistLabel);
 
@@ -470,8 +475,10 @@ public class HomeView extends ScrollPane {
         DropShadow shadow = new DropShadow(10, Color.rgb(0, 0, 0, 0.3));
         artContainer.setEffect(shadow);
 
-        javafx.scene.Node titleLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(), "-fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold;", 140);
-        javafx.scene.Node artistLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(), "-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 11px;", 140);
+        javafx.scene.Node titleLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(),
+                "-fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold;", 140);
+        javafx.scene.Node artistLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(),
+                "-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 11px;", 140);
 
         card.getChildren().addAll(artContainer, titleLabel, artistLabel);
 
@@ -525,8 +532,15 @@ public class HomeView extends ScrollPane {
         textBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(textBox, Priority.ALWAYS);
 
-        javafx.scene.Node titleLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(), "-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;", 260);
-        javafx.scene.Node artistLabel = aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(), "-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 12px;", 260);
+        Label titleLabel = new Label(song.getTitle());
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
+        titleLabel.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
+        titleLabel.setMaxWidth(260);
+
+        Label artistLabel = new Label(song.getArtist());
+        artistLabel.setStyle("-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 12px;");
+        artistLabel.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
+        artistLabel.setMaxWidth(260);
 
         textBox.getChildren().addAll(titleLabel, artistLabel);
 

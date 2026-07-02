@@ -32,6 +32,7 @@ public class Main extends Application {
         
         // Handle clean shutdown of background threads
         primaryStage.setOnCloseRequest(event -> {
+            viewModel.savePlaybackState();
             LibraryManager.getInstance().shutdown();
             System.exit(0);
         });

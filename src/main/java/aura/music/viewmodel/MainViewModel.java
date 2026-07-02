@@ -102,6 +102,8 @@ public class MainViewModel {
 
         // Sync initial volume
         volume.set(audioEngine.getVolume());
+
+        Platform.runLater(this::loadPlaybackState);
     }
 
     public ObjectProperty<Song> currentSongProperty() {
@@ -399,5 +401,120 @@ public class MainViewModel {
         song.setFavorite(!song.isFavorite());
         libraryManager.saveLibraryToCache();
         favoritesVersion.set(favoritesVersion.get() + 1);
+    }
+
+    private static class PlaybackState {
+        String lastSongPath;
+        double currentTime;
+        java.util.List<String> queuePaths;
+        int queueIndex;
+        double volume;
+        String repeatMode;
+        boolean shuffleMode;
+    }
+
+    public void savePlaybackState() {
+        try {
+            String userHome = System.getProperty("user.home");
+            String appDataPath = userHome + File.separator + ".auramusic";
+            File stateFile = new File(appDataPath, "playback_state.json");
+
+            PlaybackState state = new PlaybackState();
+            if (currentSong.get() != null) {
+                state.lastSongPath = currentSong.get().getPath();
+            }
+            state.currentTime = currentTime.get();
+            state.queueIndex = currentQueueIndex.get();
+            state.volume = volume.get();
+            state.repeatMode = repeatMode.get().name();
+            state.shuffleMode = shuffleMode.get();
+
+            state.queuePaths = new java.util.ArrayList<>();
+            for (Song s : queue) {
+                state.queuePaths.add(s.getPath());
+            }
+
+            try (java.io.Writer writer = new java.io.FileWriter(stateFile)) {
+                new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(state, writer);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to save playback state: " + e.getMessage());
+        }
+    }
+
+    public void loadPlaybackState() {
+        try {
+            String userHome = System.getProperty("user.home");
+            String appDataPath = userHome + File.separator + ".auramusic";
+            File stateFile = new File(appDataPath, "playback_state.json");
+            if (!stateFile.exists()) {
+                return;
+            }
+
+            PlaybackState state;
+            try (java.io.Reader reader = new java.io.FileReader(stateFile)) {
+                state = new com.google.gson.Gson().fromJson(reader, PlaybackState.class);
+            }
+
+            if (state == null) {
+                return;
+            }
+
+            if (state.volume >= 0.0 && state.volume <= 1.0) {
+                volume.set(state.volume);
+            }
+            if (state.repeatMode != null) {
+                try {
+                    repeatMode.set(RepeatMode.valueOf(state.repeatMode));
+                } catch (Exception ignored) {}
+            }
+            shuffleMode.set(state.shuffleMode);
+
+            if (state.queuePaths != null && !state.queuePaths.isEmpty()) {
+                java.util.List<Song> restoredQueue = new java.util.ArrayList<>();
+                for (String path : state.queuePaths) {
+                    Song matched = librarySongs.stream()
+                            .filter(s -> s.getPath().equals(path))
+                            .findFirst()
+                            .orElse(null);
+                    if (matched != null) {
+                        restoredQueue.add(matched);
+                    }
+                }
+                if (!restoredQueue.isEmpty()) {
+                    queue.setAll(restoredQueue);
+                }
+            }
+
+            if (state.queueIndex >= 0 && state.queueIndex < queue.size()) {
+                currentQueueIndex.set(state.queueIndex);
+                Song matchedSong = queue.get(state.queueIndex);
+                currentSong.set(matchedSong);
+
+                audioEngine.prepare(matchedSong);
+                audioEngine.setVolume(volume.get());
+                if (state.currentTime > 0) {
+                    currentTime.set(state.currentTime);
+                    audioEngine.seek(state.currentTime);
+                }
+                updateFilteredQueue();
+            } else if (state.lastSongPath != null) {
+                Song matched = librarySongs.stream()
+                        .filter(s -> s.getPath().equals(state.lastSongPath))
+                        .findFirst()
+                        .orElse(null);
+                if (matched != null) {
+                    currentSong.set(matched);
+                    audioEngine.prepare(matched);
+                    audioEngine.setVolume(volume.get());
+                    if (state.currentTime > 0) {
+                        currentTime.set(state.currentTime);
+                        audioEngine.seek(state.currentTime);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to load playback state: " + e.getMessage());
+        }
     }
 }

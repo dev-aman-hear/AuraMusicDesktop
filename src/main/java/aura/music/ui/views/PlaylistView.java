@@ -19,7 +19,6 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 public class PlaylistView extends HBox {
 
@@ -71,13 +70,16 @@ public class PlaylistView extends HBox {
                     setStyle("-fx-background-color: transparent;");
                 } else {
                     setText(item.getName());
-                    setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8 12; -fx-background-color: transparent;");
+                    setStyle(
+                            "-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8 12; -fx-background-color: transparent;");
                     // Highlight selected item via CSS or inline style
                     selectedProperty().addListener((obs, wasSelected, isSelected) -> {
                         if (isSelected) {
-                            setStyle("-fx-text-fill: #ff2d55; -fx-font-size: 14px; -fx-padding: 8 12; -fx-background-color: rgba(255,255,255,0.05);");
+                            setStyle(
+                                    "-fx-text-fill: #ff2d55; -fx-font-size: 14px; -fx-padding: 8 12; -fx-background-color: rgba(255,255,255,0.05);");
                         } else {
-                            setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8 12; -fx-background-color: transparent;");
+                            setStyle(
+                                    "-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8 12; -fx-background-color: transparent;");
                         }
                     });
                 }
@@ -161,7 +163,8 @@ public class PlaylistView extends HBox {
 
         ScrollPane songsScroll = new ScrollPane();
         songsScroll.setFitToWidth(true);
-        songsScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
+        songsScroll.setStyle(
+                "-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
         playlistSongsContainer = new VBox(2);
         songsScroll.setContent(playlistSongsContainer);
         VBox.setVgrow(songsScroll, Priority.ALWAYS);
@@ -173,11 +176,12 @@ public class PlaylistView extends HBox {
         refreshPlaylists();
     }
 
-    private void refreshPlaylists() {
+    public void refreshPlaylists() {
         List<Playlist> lists = libraryManager.getPlaylists();
         playlistListView.getItems().setAll(lists);
         if (selectedPlaylist != null) {
-            Optional<Playlist> match = lists.stream().filter(p -> p.getId().equals(selectedPlaylist.getId())).findFirst();
+            Optional<Playlist> match = lists.stream().filter(p -> p.getId().equals(selectedPlaylist.getId()))
+                    .findFirst();
             if (match.isPresent()) {
                 playlistListView.getSelectionModel().select(match.get());
             } else {
@@ -236,9 +240,12 @@ public class PlaylistView extends HBox {
         durationLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: rgba(255,255,255,0.5);");
 
         Button removeBtn = new Button("✕");
-        removeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;");
-        removeBtn.setOnMouseEntered(e -> removeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #ff3b30; -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;"));
-        removeBtn.setOnMouseExited(e -> removeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;"));
+        removeBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;");
+        removeBtn.setOnMouseEntered(e -> removeBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #ff3b30; -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;"));
+        removeBtn.setOnMouseExited(e -> removeBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;"));
         removeBtn.setOnAction(e -> {
             if (selectedPlaylist != null) {
                 selectedPlaylist.removeSong(song);
@@ -249,11 +256,24 @@ public class PlaylistView extends HBox {
 
         row.getChildren().addAll(indexLabel, titleCol, durationLabel, removeBtn);
 
-        row.setOnMouseEntered(e -> row.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 6; -fx-cursor: hand;"));
-        row.setOnMouseExited(e -> row.setStyle("-fx-background-color: transparent; -fx-background-radius: 6; -fx-cursor: hand;"));
+        row.setOnMouseEntered(e -> row
+                .setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 6; -fx-cursor: hand;"));
+        row.setOnMouseExited(
+                e -> row.setStyle("-fx-background-color: transparent; -fx-background-radius: 6; -fx-cursor: hand;"));
         row.setOnMouseClicked(e -> {
             if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY && e.getClickCount() == 2) {
-                viewModel.play(song);
+                if (selectedPlaylist != null) {
+                    List<Song> playlistSongs = selectedPlaylist.getSongs();
+                    int idx = playlistSongs.indexOf(song);
+                    if (idx != -1) {
+                        viewModel.getQueue().setAll(playlistSongs);
+                        viewModel.playQueueIndex(idx);
+                    } else {
+                        viewModel.play(song);
+                    }
+                } else {
+                    viewModel.play(song);
+                }
             }
         });
 
@@ -279,7 +299,8 @@ public class PlaylistView extends HBox {
     }
 
     private void handleRenamePlaylist() {
-        if (selectedPlaylist == null) return;
+        if (selectedPlaylist == null)
+            return;
         TextInputDialog dialog = new TextInputDialog(selectedPlaylist.getName());
         dialog.setTitle("Rename Playlist");
         dialog.setHeaderText("Enter new playlist name:");
@@ -298,7 +319,8 @@ public class PlaylistView extends HBox {
     }
 
     private void handleDeletePlaylist() {
-        if (selectedPlaylist == null) return;
+        if (selectedPlaylist == null)
+            return;
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Delete Playlist");
         alert.setHeaderText("Are you sure you want to delete this playlist?");
@@ -315,7 +337,8 @@ public class PlaylistView extends HBox {
     }
 
     private void handleAddSongs() {
-        if (selectedPlaylist == null) return;
+        if (selectedPlaylist == null)
+            return;
 
         // Custom beautiful dialog to select songs
         Dialog<List<Song>> dialog = new Dialog<>();
@@ -332,7 +355,8 @@ public class PlaylistView extends HBox {
 
         TextField searchField = new TextField();
         searchField.setPromptText("Search songs...");
-        searchField.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-text-fill: white; -fx-background-radius: 6;");
+        searchField.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.06); -fx-text-fill: white; -fx-background-radius: 6;");
 
         ListView<SongSelectionWrapper> songList = new ListView<>();
         songList.setStyle("-fx-background-color: rgba(255,255,255,0.03); -fx-background-radius: 6;");
@@ -357,6 +381,7 @@ public class PlaylistView extends HBox {
 
         songList.setCellFactory(lv -> new ListCell<>() {
             private final CheckBox checkBox = new CheckBox();
+
             @Override
             protected void updateItem(SongSelectionWrapper item, boolean empty) {
                 super.updateItem(item, empty);
@@ -365,7 +390,8 @@ public class PlaylistView extends HBox {
                     setGraphic(null);
                 } else {
                     checkBox.setSelected(item.selected);
-                    checkBox.textProperty().bind(javafx.beans.binding.Bindings.concat(item.song.getTitle(), " - ", item.song.getArtist()));
+                    checkBox.textProperty().bind(
+                            javafx.beans.binding.Bindings.concat(item.song.getTitle(), " - ", item.song.getArtist()));
                     checkBox.setStyle("-fx-text-fill: white;");
                     checkBox.setOnAction(e -> item.selected = checkBox.isSelected());
                     setGraphic(checkBox);
@@ -380,7 +406,8 @@ public class PlaylistView extends HBox {
             if (btn == addType) {
                 List<Song> selected = new ArrayList<>();
                 for (SongSelectionWrapper w : allWrappers) {
-                    if (w.selected) selected.add(w.song);
+                    if (w.selected)
+                        selected.add(w.song);
                 }
                 return selected;
             }
@@ -400,6 +427,7 @@ public class PlaylistView extends HBox {
     private static class SongSelectionWrapper {
         final Song song;
         boolean selected = false;
+
         SongSelectionWrapper(Song song) {
             this.song = song;
         }

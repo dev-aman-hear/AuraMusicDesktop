@@ -7,6 +7,7 @@ public class SVGIcons {
 
     public static SVGPath createPlayIcon(double size, Color color) {
         SVGPath path = new SVGPath();
+        // Clean filled triangle - Apple Music style
         path.setContent("M8 5v14l11-7z");
         setupPath(path, size, color);
         return path;
@@ -21,6 +22,7 @@ public class SVGIcons {
 
     public static SVGPath createNextIcon(double size, Color color) {
         SVGPath path = new SVGPath();
+        // Apple Music style: filled triangle + vertical bar on right
         path.setContent("M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z");
         setupPath(path, size, color);
         return path;
@@ -28,14 +30,16 @@ public class SVGIcons {
 
     public static SVGPath createPreviousIcon(double size, Color color) {
         SVGPath path = new SVGPath();
-        path.setContent("M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z");
+        // Apple Music style: filled triangle + vertical bar on left
+        path.setContent("M6 6h2v12H6zm3.5 6 8.5 6V6z");
         setupPath(path, size, color);
         return path;
     }
 
     public static SVGPath createVolumeIcon(double size, Color color) {
         SVGPath path = new SVGPath();
-        path.setContent("M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z");
+        // Apple Music style clean speaker (triangle + body, minimal waves)
+        path.setContent("M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77z");
         setupPath(path, size, color);
         return path;
     }
@@ -71,14 +75,15 @@ public class SVGIcons {
 
     public static SVGPath createLyricsIcon(double size, Color color) {
         SVGPath path = new SVGPath();
-        path.setContent("M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5zm4 4h-2v-5h2v5zm0-6h-2V7h2v3z");
+        // Apple Music speech-bubble style lyrics icon
+        path.setContent("M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 14H6v-2h2v2zm0-3H6V9h2v2zm0-3H6V6h2v2zm7 6h-5v-2h5v2zm0-3h-5V9h5v2zm0-3h-5V6h5v2z");
         setupPath(path, size, color);
         return path;
     }
 
     public static SVGPath createQueueIcon(double size, Color color) {
         SVGPath path = new SVGPath();
-        path.setContent("M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z");
+        path.setContent("M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z");
         setupPath(path, size, color);
         return path;
     }

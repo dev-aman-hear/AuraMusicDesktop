@@ -127,6 +127,76 @@ public class AudioEngine {
         }
     }
 
+    public void prepare(Song song) {
+        if (song == null)
+            return;
+
+        stop();
+        currentSong = song;
+
+        try {
+            String uriString;
+            String pathLower = song.getPath().toLowerCase();
+
+            if (!pathLower.endsWith(".mp3") && !pathLower.endsWith(".wav")) {
+                tempWavFile = decodeWithFFmpeg(new File(song.getPath()));
+                uriString = tempWavFile.toURI().toString();
+            } else {
+                uriString = new File(song.getPath()).toURI().toString();
+            }
+
+            Media media = new Media(uriString);
+            mediaPlayer = new MediaPlayer(media);
+
+            mediaPlayer.setVolume(muted ? 0.0 : volume);
+            applyEqualizerSettings();
+
+            mediaPlayer.setOnReady(() -> {
+                state = PlaybackState.PAUSED;
+                Duration duration = mediaPlayer.getMedia().getDuration();
+                for (Consumer<Duration> listener : onReadyListeners) {
+                    listener.accept(duration);
+                }
+                mediaPlayer.pause();
+            });
+
+            mediaPlayer.setOnEndOfMedia(() -> {
+                state = PlaybackState.STOPPED;
+                for (Runnable listener : onEndOfMediaListeners) {
+                    listener.run();
+                }
+            });
+
+            mediaPlayer.currentTimeProperty().addListener((observable, oldValue, newValue) -> {
+                for (Consumer<Duration> listener : onProgressListeners) {
+                    listener.accept(newValue);
+                }
+            });
+
+            // GPU-accelerated audio spectrum listener for the visualizer
+            mediaPlayer.setAudioSpectrumInterval(0.016);
+            mediaPlayer.setAudioSpectrumNumBands(64);
+            mediaPlayer.setAudioSpectrumListener((timestamp, duration, magnitudes, phases) -> {
+                if (state == PlaybackState.PLAYING) {
+                    for (Consumer<float[]> listener : onSpectrumListeners) {
+                        listener.accept(magnitudes);
+                    }
+                }
+            });
+
+            mediaPlayer.pause();
+            state = PlaybackState.PAUSED;
+
+        } catch (Exception e) {
+            System.err.println("Error preparing song: " + e.getMessage());
+            e.printStackTrace();
+            state = PlaybackState.STOPPED;
+            for (Runnable listener : onEndOfMediaListeners) {
+                listener.run();
+            }
+        }
+    }
+
     private File decodeWithFFmpeg(File inputFile) throws Exception {
         File tempFile = File.createTempFile("aura_playback_", ".wav");
         tempFile.deleteOnExit();

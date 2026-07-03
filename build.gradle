@@ -15,6 +15,11 @@ dependencies {
     implementation 'net.jthink:jaudiotagger:3.0.1'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.jflac:jflac-codec:1.5.2'
+    implementation 'org.kordamp.ikonli:ikonli-javafx:12.3.1'
+    implementation 'org.kordamp.ikonli:ikonli-materialdesign2-pack:12.3.1'
+    implementation 'io.github.selemba1000:JavaMediaTransportControls:0.0.3'
+    implementation 'net.java.dev.jna:jna:5.14.0'
+    implementation 'net.java.dev.jna:jna-platform:5.14.0'
     
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
@@ -37,6 +42,22 @@ test {
     useJUnitPlatform()
 }
 
+tasks.register('packageAppImage', Exec) {
+    dependsOn installDist
+    group = 'distribution'
+    description = 'Packages the application as a Windows App Image.'
+    commandLine 'jpackage',
+        '--input', "${buildDir}/install/AuraMusicDesktop/lib",
+        '--main-jar', 'AuraMusicDesktop-1.0-SNAPSHOT.jar',
+        '--main-class', 'aura.music.Launcher',
+        '--name', 'Aura Music Desktop',
+        '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
+        '--type', 'app-image',
+        '--dest', "${buildDir}/app-image",
+        '--vendor', 'AuraMusic',
+        '--app-version', '1.0.0'
+}
+
 tasks.register('packageExe', Exec) {
     dependsOn installDist
     group = 'distribution'
@@ -46,6 +67,7 @@ tasks.register('packageExe', Exec) {
         '--main-jar', 'AuraMusicDesktop-1.0-SNAPSHOT.jar',
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
+        '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
         '--type', 'exe',
         '--dest', "${buildDir}/installer",
         '--win-dir-chooser',
@@ -64,6 +86,7 @@ tasks.register('packageMsi', Exec) {
         '--main-jar', 'AuraMusicDesktop-1.0-SNAPSHOT.jar',
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
+        '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
         '--type', 'msi',
         '--dest', "${buildDir}/installer",
         '--win-dir-chooser',

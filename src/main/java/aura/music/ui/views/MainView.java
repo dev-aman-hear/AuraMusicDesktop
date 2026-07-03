@@ -183,6 +183,9 @@ public class MainView extends StackPane {
         // Create Playlist View
         playlistView = new PlaylistView(viewModel);
 
+        // Initialize Native Windows Media Controls
+        new aura.music.ui.components.SystemMediaControls(viewModel);
+
         albumsGridViewEnabled.addListener((obs, oldVal, newVal) -> {
             if (currentActiveView == centerSection && "Albums".equals(sectionTitle.getText())) {
                 showAlbumsGrid();

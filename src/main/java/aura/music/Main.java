@@ -19,6 +19,13 @@ public class Main extends Application {
         
         // Make stage borderless & transparent
         primaryStage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+        
+        // Set application icon
+        try {
+            primaryStage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/aura/music/AuraMusicDesktop.png")));
+        } catch (Exception e) {
+            System.err.println("Could not load app icon: " + e.getMessage());
+        }
 
         MainView mainView = new MainView(viewModel);
 

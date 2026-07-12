@@ -15,12 +15,15 @@ import javafx.scene.image.Image;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.UUID;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 
 public class MainViewModel {
 
     private final AudioEngine audioEngine = AudioEngine.getInstance();
     private final LibraryManager libraryManager = LibraryManager.getInstance();
     private final ThemeEngine themeEngine = ThemeEngine.getInstance();
+    private PauseTransition sleepTimer;
 
     // Player Properties
     private final ObjectProperty<Song> currentSong = new SimpleObjectProperty<>();
@@ -333,6 +336,18 @@ public class MainViewModel {
                 }
             }
         }
+
+        // Try fetching online if still empty
+        if (lyricsLines.isEmpty()) {
+            aura.music.lyrics.OnlineLyricsService.fetchLyricsAsync(song.getTitle(), song.getArtist(), song.getAlbum())
+                .thenAccept(lyrics -> {
+                    if (lyrics != null && !lyrics.isEmpty() && currentSong.get() == song) {
+                        javafx.application.Platform.runLater(() -> {
+                            lyricsLines.addAll(LyricParser.parse(lyrics));
+                        });
+                    }
+                });
+        }
     }
 
     private void updateActiveLyricIndex(double currentMs) {
@@ -515,6 +530,25 @@ public class MainViewModel {
             }
         } catch (Exception e) {
             System.err.println("Failed to load playback state: " + e.getMessage());
+        }
+    }
+
+    public void startSleepTimer(int minutes) {
+        cancelSleepTimer();
+        sleepTimer = new PauseTransition(Duration.minutes(minutes));
+        sleepTimer.setOnFinished(e -> {
+            if (audioEngine.getState() == AudioEngine.PlaybackState.PLAYING) {
+                audioEngine.pause();
+                isPlaying.set(false);
+            }
+        });
+        sleepTimer.play();
+    }
+
+    public void cancelSleepTimer() {
+        if (sleepTimer != null) {
+            sleepTimer.stop();
+            sleepTimer = null;
         }
     }
 }

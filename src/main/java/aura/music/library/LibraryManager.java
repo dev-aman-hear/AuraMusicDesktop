@@ -216,13 +216,49 @@ public class LibraryManager {
         if (query == null || query.trim().isEmpty()) {
             return new ArrayList<>(songs);
         }
-        String q = query.toLowerCase();
+        String q = query.toLowerCase().trim();
+        
         return songs.stream()
-                .filter(s -> (s.getTitle() != null && s.getTitle().toLowerCase().contains(q))
-                        || (s.getArtist() != null && s.getArtist().toLowerCase().contains(q))
-                        || (s.getAlbum() != null && s.getAlbum().toLowerCase().contains(q))
-                        || (s.getGenre() != null && s.getGenre().toLowerCase().contains(q)))
+                .filter(s -> isFuzzyMatch(q, s.getTitle()) || 
+                             isFuzzyMatch(q, s.getArtist()) || 
+                             isFuzzyMatch(q, s.getAlbum()) || 
+                             isFuzzyMatch(q, s.getGenre()))
+                .sorted((s1, s2) -> {
+                    // Rank by best score (lower is better)
+                    int score1 = Math.min(Math.min(levenshtein(q, s1.getTitle()), levenshtein(q, s1.getArtist())), levenshtein(q, s1.getAlbum()));
+                    int score2 = Math.min(Math.min(levenshtein(q, s2.getTitle()), levenshtein(q, s2.getArtist())), levenshtein(q, s2.getAlbum()));
+                    return Integer.compare(score1, score2);
+                })
                 .collect(Collectors.toList());
+    }
+
+    private boolean isFuzzyMatch(String query, String target) {
+        if (target == null || target.isEmpty()) return false;
+        String t = target.toLowerCase();
+        if (t.contains(query)) return true;
+        // Allow a few typos (max distance 2 or 3 depending on length)
+        int dist = levenshtein(query, t);
+        int maxTypos = Math.max(1, query.length() / 3);
+        return dist <= maxTypos;
+    }
+
+    private int levenshtein(String a, String b) {
+        if (a == null) a = "";
+        if (b == null) b = "";
+        a = a.toLowerCase();
+        b = b.toLowerCase();
+        int[] costs = new int[b.length() + 1];
+        for (int j = 0; j < costs.length; j++) costs[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            costs[0] = i;
+            int nw = i - 1;
+            for (int j = 1; j <= b.length(); j++) {
+                int cj = Math.min(1 + Math.min(costs[j], costs[j - 1]), a.charAt(i - 1) == b.charAt(j - 1) ? nw : nw + 1);
+                nw = costs[j];
+                costs[j] = cj;
+            }
+        }
+        return costs[b.length()];
     }
 
     // Persistence

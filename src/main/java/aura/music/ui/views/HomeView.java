@@ -1,6 +1,7 @@
 package aura.music.ui.views;
 
 import aura.music.model.Song;
+import aura.music.ui.components.MenuUtils;
 import aura.music.viewmodel.MainViewModel;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -547,6 +548,10 @@ public class HomeView extends ScrollPane {
         Button menuBtn = new Button("•••");
         menuBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5 0 5;");
+        menuBtn.setOnAction(e -> {
+            e.consume();
+            MenuUtils.showSongContextMenu(menuBtn, song, viewModel);
+        });
 
         cell.getChildren().addAll(textBox, menuBtn);
 

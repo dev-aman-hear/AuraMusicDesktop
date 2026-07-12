@@ -1,6 +1,7 @@
 package aura.music.ui.views;
 
 import aura.music.model.Song;
+import aura.music.ui.components.MenuUtils;
 import aura.music.ui.components.SVGIcons;
 import aura.music.viewmodel.MainViewModel;
 import aura.music.lyrics.LyricLine;
@@ -1538,6 +1539,13 @@ public class MiniPlayerWindow extends Stage {
         closeItem.setOnAction(e -> restoreMainPlayer());
 
         contextMenu.getItems().addAll(alwaysOnTopItem, new javafx.scene.control.SeparatorMenuItem(), restoreItem, fsItem, new javafx.scene.control.SeparatorMenuItem(), closeItem);
+
+        Song current = viewModel.currentSongProperty().get();
+        if (current != null) {
+            contextMenu.getItems().add(new javafx.scene.control.SeparatorMenuItem());
+            contextMenu.getItems().addAll(MenuUtils.getSongContextMenuItems(current, viewModel));
+        }
+
         contextMenu.show(anchor, javafx.geometry.Side.BOTTOM, 0, 0);
     }
 

@@ -1,6 +1,7 @@
 package aura.music.ui.views;
 
 import aura.music.model.Song;
+import aura.music.ui.components.MenuUtils;
 import aura.music.ui.components.SVGIcons;
 import aura.music.viewmodel.MainViewModel;
 import javafx.geometry.Insets;
@@ -121,6 +122,11 @@ public class AlbumDetailView extends ScrollPane {
         Button moreBtn = new Button("•••");
         moreBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: #ff2d55; -fx-font-size: 14px; -fx-cursor: hand;");
+        moreBtn.setOnAction(e -> {
+            if (!albumSongs.isEmpty()) {
+                MenuUtils.showSongContextMenu(moreBtn, albumSongs.get(0), viewModel);
+            }
+        });
 
         actionRow.getChildren().addAll(playBtn, shuffleBtn, spacer, downloadBtn, moreBtn);
 
@@ -301,6 +307,7 @@ public class AlbumDetailView extends ScrollPane {
         Button menuBtn = new Button("•••");
         menuBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 10px; -fx-cursor: hand;");
+        menuBtn.setOnAction(e -> MenuUtils.showSongContextMenu(menuBtn, song, viewModel));
 
         row.getChildren().addAll(indexContainer, titleCol, durationLabel, menuBtn);
 

@@ -4,6 +4,12 @@ A premium, borderless, and highly customizable modern desktop music player built
 
 ---
 
+## 🆕 What's New in v1.2.0
+- **UI Enhancements**: Added a modern glassy look to context menus, sub-menus, and dropdown popups.
+- **UX Improvements**: Auto-collapsing sidebar overlay when navigating in narrowed window state.
+
+---
+
 ## ✨ Features
 
 - **📺 Immersive Visuals & Borderless Window**: A customized, transparent, and modern borderless UI with a dark aesthetic, custom title bars, and fluid CSS-based transition effects.

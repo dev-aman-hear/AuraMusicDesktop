@@ -1,6 +1,7 @@
 package aura.music.ui.views;
 
 import aura.music.model.Song;
+import aura.music.ui.components.MenuUtils;
 import aura.music.viewmodel.MainViewModel;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -140,6 +141,10 @@ public class NewView extends ScrollPane {
         Button optionsBtn = new Button("•••");
         optionsBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: #ff2d55; -fx-font-size: 11px; -fx-cursor: hand;");
+        optionsBtn.setOnAction(e -> {
+            e.consume();
+            MenuUtils.showSongContextMenu(optionsBtn, song, viewModel);
+        });
 
         row.getChildren().addAll(artContainer, textCol, optionsBtn);
 

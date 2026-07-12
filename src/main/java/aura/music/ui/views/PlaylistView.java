@@ -3,6 +3,7 @@ package aura.music.ui.views;
 import aura.music.library.LibraryManager;
 import aura.music.model.Playlist;
 import aura.music.model.Song;
+import aura.music.ui.components.MenuUtils;
 import aura.music.ui.components.SVGIcons;
 import aura.music.viewmodel.MainViewModel;
 import javafx.geometry.Insets;
@@ -239,22 +240,15 @@ public class PlaylistView extends HBox {
         Label durationLabel = new Label(String.format("%d:%02d", minutes, secs));
         durationLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: rgba(255,255,255,0.5);");
 
-        Button removeBtn = new Button("✕");
-        removeBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;");
-        removeBtn.setOnMouseEntered(e -> removeBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: #ff3b30; -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;"));
-        removeBtn.setOnMouseExited(e -> removeBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5;"));
-        removeBtn.setOnAction(e -> {
-            if (selectedPlaylist != null) {
-                selectedPlaylist.removeSong(song);
-                libraryManager.savePlaylists();
-                showPlaylistDetail(selectedPlaylist);
-            }
+        Button optionsBtn = new Button("•••");
+        optionsBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 10px; -fx-cursor: hand; -fx-padding: 0 5;");
+        optionsBtn.setOnAction(e -> {
+            e.consume();
+            MenuUtils.showSongContextMenu(optionsBtn, song, viewModel);
         });
 
-        row.getChildren().addAll(indexLabel, titleCol, durationLabel, removeBtn);
+        row.getChildren().addAll(indexLabel, titleCol, durationLabel, optionsBtn);
 
         row.setOnMouseEntered(e -> row
                 .setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 6; -fx-cursor: hand;"));

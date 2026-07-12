@@ -3,9 +3,9 @@ package aura.music.ui.views;
 import aura.music.model.Song;
 import aura.music.theme.ThemeEngine;
 import aura.music.ui.components.LyricsView;
+import aura.music.ui.components.MenuUtils;
 import aura.music.ui.components.SVGIcons;
 import aura.music.viewmodel.MainViewModel;
-import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -63,9 +63,6 @@ public class FullScreenPlayer extends StackPane {
     private final Button playPauseButton;
     private final Button favoriteBtn;
     private final Button lyricsToggleBtn;
-
-    // Animations
-    private TranslateTransition floatAnimation;
 
     // Listeners for cleanup
     private javafx.beans.value.ChangeListener<Song> songListener;
@@ -144,9 +141,6 @@ public class FullScreenPlayer extends StackPane {
             }
         });
 
-        // Setup Floating Animation
-        setupFloatingAnimation();
-
         // Info Box (Title, Artist, Quality Badge)
         titleRow = new HBox(10);
         titleRow.setAlignment(Pos.CENTER);
@@ -210,6 +204,12 @@ public class FullScreenPlayer extends StackPane {
         Button optionsBtn = new Button("•••");
         optionsBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;");
+        optionsBtn.setOnAction(e -> {
+            Song current = viewModel.currentSongProperty().get();
+            if (current != null) {
+                MenuUtils.showSongContextMenu(optionsBtn, current, viewModel);
+            }
+        });
 
         HBox leftBottom = new HBox(15, speakerBtn, optionsBtn);
         leftBottom.setAlignment(Pos.CENTER_LEFT);
@@ -362,16 +362,6 @@ public class FullScreenPlayer extends StackPane {
 
         updateSong(viewModel.currentSongProperty().get());
         updatePlayState(viewModel.isPlayingProperty().get());
-    }
-
-    private void setupFloatingAnimation() {
-        floatAnimation = new TranslateTransition(Duration.seconds(3.5), artContainer);
-        floatAnimation.setFromY(0);
-        floatAnimation.setToY(-12);
-        floatAnimation.setCycleCount(Animation.INDEFINITE);
-        floatAnimation.setAutoReverse(true);
-        floatAnimation.setInterpolator(Interpolator.EASE_BOTH);
-        floatAnimation.play();
     }
 
     private void toggleLyricsLayout() {

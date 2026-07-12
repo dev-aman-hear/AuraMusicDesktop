@@ -280,6 +280,70 @@ public class MainView extends StackPane {
         themeEngine.sidebarColorProperty().addListener((obs, oldCol, newCol) -> updateThemeStyles());
         themeEngine.lightModeProperty().addListener((obs, oldVal, newVal) -> updateThemeStyles());
 
+        // --- Drag and Drop ---
+        this.setOnDragOver(event -> {
+            if (event.getGestureSource() != this && event.getDragboard().hasFiles()) {
+                event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
+            }
+            event.consume();
+        });
+
+        this.setOnDragDropped(event -> {
+            javafx.scene.input.Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasFiles()) {
+                for (File file : db.getFiles()) {
+                    java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        if (file.isDirectory()) {
+                            LibraryManager.getInstance().addWatchedFolder(file.getAbsolutePath());
+                        } else {
+                            LibraryManager.getInstance().addWatchedFolder(file.getParentFile().getAbsolutePath());
+                        }
+                    });
+                }
+                success = true;
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+
+        // Auto-hide right panel (queue/lyrics) when clicking elsewhere
+        this.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+            if (rightPanel != null && rightPanel.isVisible()) {
+                javafx.scene.Node target = (javafx.scene.Node) event.getTarget();
+                // Check if target is inside the rightPanel or is a toggle button
+                boolean inRightPanel = false;
+                javafx.scene.Node p = target;
+                while (p != null) {
+                    if (p == rightPanel || p == queueBtn || p == lyricsBtn) {
+                        inRightPanel = true;
+                        break;
+                    }
+                    p = p.getParent();
+                }
+                
+                // If it's a button click outside the right panel, close it
+                if (!inRightPanel) {
+                    boolean isButton = false;
+                    p = target;
+                    while (p != null) {
+                        if (p instanceof javafx.scene.control.Button) {
+                            isButton = true;
+                            break;
+                        }
+                        p = p.getParent();
+                    }
+                    if (isButton) {
+                        TranslateTransition transition = new TranslateTransition(Duration.millis(250), rightPanel);
+                        transition.setFromX(0);
+                        transition.setToX(400);
+                        transition.setOnFinished(e -> rightPanel.setVisible(false));
+                        transition.play();
+                    }
+                }
+            }
+        });
+
         updateThemeStyles(); // apply initial
     }
 
@@ -318,6 +382,18 @@ public class MainView extends StackPane {
     }
 
     private void switchViewWithFade(javafx.scene.Node targetView) {
+        // Auto-collapse sidebar if it's acting as an overlay popup in a narrow window
+        Stage stage = (Stage) getScene().getWindow();
+        if (stage != null) {
+            double windowWidth = stage.getWidth();
+            boolean isFullScreen = stage.isFullScreen() || stage.isMaximized();
+            boolean shouldDockExpanded = isFullScreen || windowWidth > 1350;
+            if (!shouldDockExpanded && sidebarExpanded.get()) {
+                sidebarExpanded.set(false);
+                updateSidebarLayout(isFullScreen, windowWidth);
+            }
+        }
+
         if (currentActiveView == targetView)
             return;
 
@@ -688,14 +764,23 @@ public class MainView extends StackPane {
         artContainer.getChildren().addAll(placeholder, artView);
 
         if (songPath != null) {
-            java.util.concurrent.CompletableFuture
-                    .supplyAsync(() -> aura.music.library.MetadataExtractor.extractArtworkBytes(songPath))
-                    .thenAcceptAsync(artBytes -> {
-                        if (artBytes != null) {
-                            artView.setImage(new Image(new ByteArrayInputStream(artBytes), 250, 250, true, true));
-                            placeholder.setVisible(false);
-                        }
-                    }, javafx.application.Platform::runLater);
+            Image cachedImg = aura.music.utils.ImageCache.getCachedImage(songPath);
+            if (cachedImg != null) {
+                artView.setImage(cachedImg);
+                placeholder.setVisible(false);
+            } else {
+                java.util.concurrent.CompletableFuture
+                        .supplyAsync(() -> aura.music.library.MetadataExtractor.extractArtworkBytes(songPath))
+                        .thenAcceptAsync(artBytes -> {
+                            if (artBytes != null) {
+                                Image img = aura.music.utils.ImageCache.getImage(songPath, artBytes, 250, 250);
+                                if (img != null) {
+                                    artView.setImage(img);
+                                    placeholder.setVisible(false);
+                                }
+                            }
+                        }, javafx.application.Platform::runLater);
+            }
         }
 
         DropShadow shadow = new DropShadow(10, Color.rgb(0, 0, 0, 0.3));

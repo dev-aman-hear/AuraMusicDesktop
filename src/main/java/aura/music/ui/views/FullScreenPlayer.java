@@ -201,7 +201,36 @@ public class FullScreenPlayer extends StackPane {
         Button speakerBtn = new Button();
         speakerBtn.setGraphic(SVGIcons.createVolumeIcon(14, Color.WHITE));
         speakerBtn.getStyleClass().add("icon-button");
-        speakerBtn.setOnAction(e -> viewModel.isMutedProperty().set(!viewModel.isMutedProperty().get()));
+
+        javafx.stage.Popup volumePopup = new javafx.stage.Popup();
+        volumePopup.setAutoHide(true);
+
+        HBox volPopupRoot = new HBox(8);
+        volPopupRoot.setPadding(new Insets(6, 12, 6, 12));
+        volPopupRoot.setAlignment(Pos.CENTER);
+        volPopupRoot.setStyle(
+                "-fx-background-color: #1a1a1a; -fx-background-radius: 20; -fx-border-color: rgba(255,255,255,0.1); -fx-border-radius: 20; -fx-border-width: 1; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 15, 0, 0, 5);");
+
+        javafx.scene.shape.SVGPath lowVolIcon = SVGIcons.createVolumeIcon(12, Color.web("rgba(255,255,255,0.6)"));
+        javafx.scene.shape.SVGPath highVolIcon = SVGIcons.createVolumeIcon(12, Color.WHITE);
+
+        Slider volSlider = new Slider(0, 1, viewModel.volumeProperty().get());
+        volSlider.getStyleClass().add("volume-popup-slider");
+        volSlider.valueProperty().bindBidirectional(viewModel.volumeProperty());
+
+        volPopupRoot.getChildren().addAll(lowVolIcon, volSlider, highVolIcon);
+        volumePopup.getContent().add(volPopupRoot);
+
+        speakerBtn.setOnAction(e -> {
+            if (volumePopup.isShowing()) {
+                volumePopup.hide();
+            } else {
+                javafx.geometry.Bounds bounds = speakerBtn.localToScreen(speakerBtn.getBoundsInLocal());
+                if (bounds != null) {
+                    volumePopup.show(speakerBtn, bounds.getMinX() - 80, bounds.getMinY() - 45);
+                }
+            }
+        });
 
         Button optionsBtn = new Button("•••");
         optionsBtn.setStyle(

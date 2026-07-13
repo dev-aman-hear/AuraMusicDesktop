@@ -43,6 +43,9 @@ public class MainViewModel {
     public BooleanProperty shuffleModeProperty() { return shuffleMode; }
     public ObjectProperty<RepeatMode> repeatModeProperty() { return repeatMode; }
 
+    private final BooleanProperty miniplayerAlwaysOnTop = new SimpleBooleanProperty(true);
+    public BooleanProperty miniplayerAlwaysOnTopProperty() { return miniplayerAlwaysOnTop; }
+
     // Lists
     private final ObservableList<Song> librarySongs = FXCollections.observableArrayList();
     private final ObservableList<Playlist> playlists = FXCollections.observableArrayList();

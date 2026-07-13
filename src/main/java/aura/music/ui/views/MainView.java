@@ -174,7 +174,7 @@ public class MainView extends StackPane {
         albumDetailView = new AlbumDetailView(viewModel);
 
         // Create Settings View
-        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled, () -> {
+        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled, viewModel.miniplayerAlwaysOnTopProperty(), () -> {
             if (playlistView != null) {
                 playlistView.refreshPlaylists();
             }
@@ -321,7 +321,7 @@ public class MainView extends StackPane {
                     }
                     p = p.getParent();
                 }
-                
+
                 // If it's a button click outside the right panel, close it
                 if (!inRightPanel) {
                     boolean isButton = false;
@@ -382,15 +382,21 @@ public class MainView extends StackPane {
     }
 
     private void switchViewWithFade(javafx.scene.Node targetView) {
-        // Auto-collapse sidebar if it's acting as an overlay popup in a narrow window
-        Stage stage = (Stage) getScene().getWindow();
-        if (stage != null) {
-            double windowWidth = stage.getWidth();
-            boolean isFullScreen = stage.isFullScreen() || stage.isMaximized();
-            boolean shouldDockExpanded = isFullScreen || windowWidth > 1350;
-            if (!shouldDockExpanded && sidebarExpanded.get()) {
-                sidebarExpanded.set(false);
-                updateSidebarLayout(isFullScreen, windowWidth);
+        switchViewWithFade(targetView, true);
+    }
+
+    private void switchViewWithFade(javafx.scene.Node targetView, boolean autoCollapseSidebar) {
+        if (autoCollapseSidebar) {
+            // Auto-collapse sidebar if it's acting as an overlay popup in a narrow window
+            Stage stage = (Stage) getScene().getWindow();
+            if (stage != null) {
+                double windowWidth = stage.getWidth();
+                boolean isFullScreen = stage.isFullScreen() || stage.isMaximized();
+                boolean shouldDockExpanded = isFullScreen || windowWidth > 1350;
+                if (!shouldDockExpanded && sidebarExpanded.get()) {
+                    sidebarExpanded.set(false);
+                    updateSidebarLayout(isFullScreen, windowWidth);
+                }
             }
         }
 
@@ -436,13 +442,17 @@ public class MainView extends StackPane {
     }
 
     private void showSongListSection(String title) {
+        showSongListSection(title, true);
+    }
+
+    private void showSongListSection(String title, boolean autoCollapseSidebar) {
         songListView.setVisible(true);
         albumsScrollPane.setVisible(false);
         artistsScrollPane.setVisible(false);
         if (genresScrollPane != null)
             genresScrollPane.setVisible(false);
         sectionTitle.setText(title);
-        switchViewWithFade(centerSection);
+        switchViewWithFade(centerSection, autoCollapseSidebar);
 
         // Clear active states on sidebar buttons
         for (Button b : sidebarButtons) {
@@ -451,8 +461,12 @@ public class MainView extends StackPane {
     }
 
     private void showHomeView() {
+        showHomeView(true);
+    }
+
+    private void showHomeView(boolean autoCollapseSidebar) {
         updateActiveSidebarButton("Home");
-        switchViewWithFade(homeView);
+        switchViewWithFade(homeView, autoCollapseSidebar);
     }
 
     private void updateSidebarLayout(boolean maximized, double windowWidth) {
@@ -879,10 +893,10 @@ public class MainView extends StackPane {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             viewModel.performSearch(newVal);
             if (!newVal.trim().isEmpty()) {
-                showSongListSection("Search Results");
+                showSongListSection("Search Results", false);
                 songListView.setItems(viewModel.getSearchResults());
             } else {
-                showHomeView();
+                showHomeView(false);
             }
         });
 
@@ -1498,7 +1512,8 @@ public class MainView extends StackPane {
                     if (viewModel.currentSongProperty().get() == item) {
                         javafx.scene.Node titleMarquee = aura.music.ui.MarqueeUtils.createMarqueeLabel(item.getTitle(),
                                 "-fx-font-weight: bold; -fx-text-fill: -fx-accent; -fx-font-size: 13px;", 210);
-                        javafx.scene.Node detailsMarquee = aura.music.ui.MarqueeUtils.createMarqueeLabel(item.getArtist() + " — " + item.getAlbum(),
+                        javafx.scene.Node detailsMarquee = aura.music.ui.MarqueeUtils.createMarqueeLabel(
+                                item.getArtist() + " — " + item.getAlbum(),
                                 "-fx-text-fill: -fx-accent; -fx-opacity: 0.8; -fx-font-size: 11px;", 210);
                         textContainer.getChildren().addAll(titleMarquee, detailsMarquee);
                     } else {

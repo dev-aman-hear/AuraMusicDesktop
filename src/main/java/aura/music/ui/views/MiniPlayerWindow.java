@@ -53,7 +53,6 @@ public class MiniPlayerWindow extends Stage {
 
     // View State
     private MiniPlayerViewMode currentMode = MiniPlayerViewMode.ARTWORK;
-    private boolean isPinned = true;
     private boolean isQueueTabActive = true; // true = Playing Next, false = History
     private boolean autoplayEnabled = true;
 
@@ -143,7 +142,13 @@ public class MiniPlayerWindow extends Stage {
         this.mainStage = mainStage;
 
         initStyle(StageStyle.TRANSPARENT);
-        setAlwaysOnTop(isPinned);
+        setAlwaysOnTop(viewModel.miniplayerAlwaysOnTopProperty().get());
+        
+        // Listen to changes to update UI elements (like the pin button)
+        viewModel.miniplayerAlwaysOnTopProperty().addListener((obs, oldVal, newVal) -> {
+            setAlwaysOnTop(newVal);
+            updatePinState();
+        });
         setTitle("AuraMusicFX Mini");
 
         // Initialize Listeners
@@ -1215,14 +1220,13 @@ public class MiniPlayerWindow extends Stage {
     }
 
     private void toggleAlwaysOnTop() {
-        isPinned = !isPinned;
-        setAlwaysOnTop(isPinned);
+        viewModel.miniplayerAlwaysOnTopProperty().set(!viewModel.miniplayerAlwaysOnTopProperty().get());
         updatePinState();
     }
 
     private void updatePinState() {
         Platform.runLater(() -> {
-            if (isPinned) {
+            if (viewModel.miniplayerAlwaysOnTopProperty().get()) {
                 pinBtn.setGraphic(createPinIcon(11, Color.web("#0078d4")));
                 pinBtn.setTooltip(new Tooltip("Always on Top: ON"));
             } else {
@@ -1526,19 +1530,13 @@ public class MiniPlayerWindow extends Stage {
         javafx.scene.control.ContextMenu contextMenu = new javafx.scene.control.ContextMenu();
 
         javafx.scene.control.CheckMenuItem alwaysOnTopItem = new javafx.scene.control.CheckMenuItem("Always miniplayer on top");
-        alwaysOnTopItem.setSelected(isPinned);
+        alwaysOnTopItem.setSelected(viewModel.miniplayerAlwaysOnTopProperty().get());
         alwaysOnTopItem.setOnAction(e -> toggleAlwaysOnTop());
 
         javafx.scene.control.MenuItem restoreItem = new javafx.scene.control.MenuItem("Restore Main Player");
         restoreItem.setOnAction(e -> restoreMainPlayer());
 
-        javafx.scene.control.MenuItem fsItem = new javafx.scene.control.MenuItem("Fullscreen Player");
-        fsItem.setOnAction(e -> openFullScreenPlayer());
-
-        javafx.scene.control.MenuItem closeItem = new javafx.scene.control.MenuItem("Exit Miniplayer");
-        closeItem.setOnAction(e -> restoreMainPlayer());
-
-        contextMenu.getItems().addAll(alwaysOnTopItem, new javafx.scene.control.SeparatorMenuItem(), restoreItem, fsItem, new javafx.scene.control.SeparatorMenuItem(), closeItem);
+        contextMenu.getItems().addAll(alwaysOnTopItem, new javafx.scene.control.SeparatorMenuItem(), restoreItem);
 
         Song current = viewModel.currentSongProperty().get();
         if (current != null) {

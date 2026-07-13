@@ -13,6 +13,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Slider;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.effect.BoxBlur;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
@@ -186,7 +188,7 @@ public class FullScreenPlayer extends StackPane {
         prevBtn.setOnAction(e -> viewModel.previous());
 
         playPauseButton = new Button();
-        playPauseButton.setGraphic(SVGIcons.createPlayIcon(22, Color.WHITE));
+        playPauseButton.setGraphic(SVGIcons.createPauseIcon(22, Color.WHITE));
         playPauseButton.getStyleClass().add("icon-button");
         playPauseButton.setOnAction(e -> viewModel.togglePlayPause());
 
@@ -207,7 +209,21 @@ public class FullScreenPlayer extends StackPane {
         optionsBtn.setOnAction(e -> {
             Song current = viewModel.currentSongProperty().get();
             if (current != null) {
-                MenuUtils.showSongContextMenu(optionsBtn, current, viewModel);
+                ContextMenu contextMenu = new ContextMenu();
+                contextMenu.setStyle(
+                        "-fx-background-color: rgba(30, 30, 35, 0.75); -fx-text-fill: white; -fx-padding: 8px; -fx-background-radius: 12px; -fx-border-color: rgba(255, 255, 255, 0.15); -fx-border-radius: 12px; -fx-border-width: 1px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 20, 0, 0, 8);");
+                contextMenu.getItems().addAll(MenuUtils.getSongContextMenuItems(current, viewModel));
+
+                MenuItem exitItem = new MenuItem("Exit to Mini Player");
+                exitItem.setStyle("-fx-text-fill: white;");
+                exitItem.setOnAction(ev -> {
+                    if (onExitFullScreen != null) {
+                        onExitFullScreen.run();
+                    }
+                });
+                contextMenu.getItems().add(exitItem);
+
+                contextMenu.show(optionsBtn, javafx.geometry.Side.BOTTOM, 0, 5);
             }
         });
 
@@ -297,9 +313,14 @@ public class FullScreenPlayer extends StackPane {
         exitFsBtnTop.setOnAction(e -> onExitFullScreen.run());
 
         Button closeBtnTop = new Button();
-        closeBtnTop.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand; -fx-padding: 4;");
-        closeBtnTop.setText("✕");
+        javafx.scene.shape.SVGPath closeIconTop = new javafx.scene.shape.SVGPath();
+        closeIconTop.setContent(
+                "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z");
+        closeIconTop.setFill(Color.WHITE);
+        closeIconTop.setScaleX(12.0 / 24.0);
+        closeIconTop.setScaleY(12.0 / 24.0);
+        closeBtnTop.setGraphic(closeIconTop);
+        closeBtnTop.getStyleClass().add("icon-button");
         closeBtnTop.setOnAction(e -> onClose.run());
 
         topBar.getChildren().addAll(exitFsBtnTop, closeBtnTop);
@@ -321,7 +342,8 @@ public class FullScreenPlayer extends StackPane {
             if (!progressSlider.isValueChanging()) {
                 progressSlider.setValue(newVal.doubleValue());
             }
-            timeLabel.setText(formatTime(newVal.doubleValue()));
+            double total = viewModel.totalDurationProperty().get();
+            updateTimeLabels(newVal.doubleValue(), total);
         };
         durationListener = (obs, oldVal, newVal) -> {
             progressSlider.setMax(newVal.doubleValue());
@@ -507,9 +529,25 @@ public class FullScreenPlayer extends StackPane {
         }
     }
 
+    private void updateTimeLabels(double current, double total) {
+        Platform.runLater(() -> {
+            timeLabel.setText(formatTime(current));
+            durationLabel.setText(formatRemainingTime(current, total));
+        });
+    }
+
     private String formatTime(double seconds) {
         int minutes = (int) (seconds / 60);
         int secs = (int) (seconds % 60);
         return String.format("%d:%02d", minutes, secs);
+    }
+
+    private String formatRemainingTime(double current, double total) {
+        double remaining = total - current;
+        if (remaining < 0)
+            remaining = 0;
+        int mins = (int) (remaining / 60);
+        int secs = (int) (remaining % 60);
+        return String.format("-%d:%02d", mins, secs);
     }
 }

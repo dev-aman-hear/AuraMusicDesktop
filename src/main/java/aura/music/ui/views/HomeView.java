@@ -18,7 +18,6 @@ import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.shape.Rectangle;
-
 import java.io.ByteArrayInputStream;
 import java.util.List;
 

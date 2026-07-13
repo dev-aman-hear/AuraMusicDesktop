@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'aura.music'
-version '1.2.0'
+version '1.2.1'
 
 repositories {
     mavenCentral()
@@ -48,14 +48,14 @@ tasks.register('packageAppImage', Exec) {
     description = 'Packages the application as a Windows App Image.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
-        '--main-jar', 'AuraMusicDesktop-1.2.0.jar',
+        '--main-jar', 'AuraMusicDesktop-1.2.1.jar',
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
         '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
         '--type', 'app-image',
         '--dest', "${buildDir}/app-image",
         '--vendor', 'AuraMusic',
-        '--app-version', '1.2.0'
+        '--app-version', '1.2.1'
 }
 
 tasks.register('packageExe', Exec) {
@@ -64,7 +64,7 @@ tasks.register('packageExe', Exec) {
     description = 'Packages the application as a Windows EXE installer using jpackage.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
-        '--main-jar', 'AuraMusicDesktop-1.2.0.jar',
+        '--main-jar', 'AuraMusicDesktop-1.2.1.jar',
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
         '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
@@ -74,7 +74,7 @@ tasks.register('packageExe', Exec) {
         '--win-menu',
         '--win-shortcut',
         '--vendor', 'AuraMusic',
-        '--app-version', '1.2.0'
+        '--app-version', '1.2.1'
 }
 
 tasks.register('packageMsi', Exec) {
@@ -83,7 +83,7 @@ tasks.register('packageMsi', Exec) {
     description = 'Packages the application as a Windows MSI installer using jpackage.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
-        '--main-jar', 'AuraMusicDesktop-1.2.0.jar',
+        '--main-jar', 'AuraMusicDesktop-1.2.1.jar',
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
         '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
@@ -93,6 +93,6 @@ tasks.register('packageMsi', Exec) {
         '--win-menu',
         '--win-shortcut',
         '--vendor', 'AuraMusic',
-        '--app-version', '1.2.0'
+        '--app-version', '1.2.1'
 }
 

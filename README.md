@@ -4,6 +4,12 @@ A premium, borderless, and highly customizable modern desktop music player built
 
 ---
 
+## 🆕 What's New in v1.2.1
+- **UI Enhancements**: Added an "Exit to Mini Player" option to the 3-dot context menu in Full Screen Player.
+- **Bug Fixes**: Resolved compilation errors related to property bindings in MiniPlayerWindow and primitive type checks in FullScreenPlayer.
+
+---
+
 ## 🆕 What's New in v1.2.0
 - **UI Enhancements**: Added a modern glassy look to context menus, sub-menus, and dropdown popups.
 - **UX Improvements**: Auto-collapsing sidebar overlay when navigating in narrowed window state.

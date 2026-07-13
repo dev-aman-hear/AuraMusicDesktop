@@ -14,7 +14,7 @@ public class SettingsView extends ScrollPane {
     private final ThemeEngine themeEngine = ThemeEngine.getInstance();
     private final Runnable onPlaylistsChanged;
 
-    public SettingsView(BooleanProperty albumsGrid, BooleanProperty artistsGrid, BooleanProperty genresGrid, Runnable onPlaylistsChanged) {
+    public SettingsView(BooleanProperty albumsGrid, BooleanProperty artistsGrid, BooleanProperty genresGrid, BooleanProperty miniplayerPinned, Runnable onPlaylistsChanged) {
         this.onPlaylistsChanged = onPlaylistsChanged;
         setFitToWidth(true);
         setPannable(true);
@@ -50,6 +50,17 @@ public class SettingsView extends ScrollPane {
         layoutGrid.add(artistsCombo, 1, 1);
         layoutGrid.add(genresLabel, 0, 2);
         layoutGrid.add(genresCombo, 1, 2);
+
+        Label miniplayerLabel = createSettingLabel("Always miniplayer on top");
+        Button miniplayerToggle = new Button();
+        updateToggleButtonState(miniplayerToggle, miniplayerPinned.get());
+        miniplayerToggle.setOnAction(e -> {
+            boolean active = !miniplayerPinned.get();
+            miniplayerPinned.set(active);
+            updateToggleButtonState(miniplayerToggle, active);
+        });
+        layoutGrid.add(miniplayerLabel, 0, 3);
+        layoutGrid.add(miniplayerToggle, 1, 3);
 
         layoutCard.getChildren().add(layoutGrid);
         content.getChildren().add(layoutCard);

@@ -1,4 +1,4 @@
-# 🎵 AuraMusicFX
+# 🎵 AuraMusicDesktop
 
 A premium, borderless, and highly customizable modern desktop music player built with **JavaFX 21** and **Gradle**. AuraMusicFX brings a sleek, glassmorphic design and rich features to your desktop audio experience, featuring smooth micro-animations, theme support, metadata extraction, and synchronized lyrics support.
 

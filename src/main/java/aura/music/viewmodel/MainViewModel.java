@@ -58,6 +58,11 @@ public class MainViewModel {
     // Lyrics
     private final ObservableList<LyricLine> lyricsLines = FXCollections.observableArrayList();
     private final IntegerProperty activeLyricLineIndex = new SimpleIntegerProperty(-1);
+    private final IntegerProperty lyricTextSize = new SimpleIntegerProperty(26);
+
+    public ObservableList<LyricLine> getLyricsLines() { return lyricsLines; }
+    public IntegerProperty activeLyricLineIndexProperty() { return activeLyricLineIndex; }
+    public IntegerProperty lyricTextSizeProperty() { return lyricTextSize; }
 
     // Navigation/Selection
     private final ObjectProperty<Playlist> selectedPlaylist = new SimpleObjectProperty<>();
@@ -83,6 +88,16 @@ public class MainViewModel {
             @Override
             public void onSongRemoved(Song song) {
                 Platform.runLater(() -> librarySongs.remove(song));
+            }
+            
+            @Override
+            public void onSongUpdated(Song song) {
+                Platform.runLater(() -> {
+                    int index = librarySongs.indexOf(song);
+                    if (index != -1) {
+                        librarySongs.set(index, song);
+                    }
+                });
             }
         });
 
@@ -160,13 +175,7 @@ public class MainViewModel {
         return currentQueueIndex;
     }
 
-    public ObservableList<LyricLine> getLyricsLines() {
-        return lyricsLines;
-    }
 
-    public IntegerProperty activeLyricLineIndexProperty() {
-        return activeLyricLineIndex;
-    }
 
     public ObjectProperty<Playlist> selectedPlaylistProperty() {
         return selectedPlaylist;

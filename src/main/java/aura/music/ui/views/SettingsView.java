@@ -13,22 +13,34 @@ public class SettingsView extends ScrollPane {
 
     private final ThemeEngine themeEngine = ThemeEngine.getInstance();
     private final Runnable onPlaylistsChanged;
+    private final javafx.beans.property.IntegerProperty lyricTextSize;
 
-    public SettingsView(BooleanProperty albumsGrid, BooleanProperty artistsGrid, BooleanProperty genresGrid, BooleanProperty miniplayerPinned, Runnable onPlaylistsChanged) {
+    public SettingsView(BooleanProperty albumsGrid, BooleanProperty artistsGrid, BooleanProperty genresGrid, BooleanProperty miniplayerPinned, javafx.beans.property.IntegerProperty lyricTextSize, Runnable onPlaylistsChanged) {
         this.onPlaylistsChanged = onPlaylistsChanged;
+        this.lyricTextSize = lyricTextSize;
         setFitToWidth(true);
         setPannable(true);
         setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
 
-        VBox content = new VBox(24);
-        content.setPadding(new Insets(30, 40, 40, 40));
+        VBox content = new VBox(30);
+        content.setPadding(new Insets(40, 60, 60, 60));
         content.setStyle("-fx-background-color: transparent;");
 
         // Header Title
         Label titleLabel = new Label("Settings");
-        titleLabel.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white;");
+        titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: 900; -fx-text-fill: white; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 5, 0, 0, 2);");
         content.getChildren().add(titleLabel);
 
+        // Add Username setting UI
+        VBox usernameCard = createSectionCard("Username");
+        TextField usernameField = new TextField();
+        usernameField.setPromptText("Enter username");
+        usernameField.setText(LibraryManager.getInstance().getUsername());
+        usernameField.textProperty().addListener((obs, oldVal, newVal) -> {
+            LibraryManager.getInstance().setUsername(newVal);
+        });
+        usernameCard.getChildren().add(usernameField);
+        content.getChildren().add(usernameCard);
         // --- LAYOUT SECTION ---
         VBox layoutCard = createSectionCard("Layout Options");
         GridPane layoutGrid = new GridPane();
@@ -61,6 +73,54 @@ public class SettingsView extends ScrollPane {
         });
         layoutGrid.add(miniplayerLabel, 0, 3);
         layoutGrid.add(miniplayerToggle, 1, 3);
+
+        Label lyricSizeLabel = createSettingLabel("Lyric Text Size (" + lyricTextSize.get() + "px)");
+        
+        HBox stepsContainer = new HBox(6);
+        stepsContainer.setAlignment(Pos.CENTER_LEFT);
+        int[] stepValues = {14, 18, 22, 26, 30, 34, 38, 42, 46, 50};
+        
+        Runnable updateSteps = new Runnable() {
+            @Override
+            public void run() {
+                stepsContainer.getChildren().clear();
+                for (int val : stepValues) {
+                    Region step = new Region();
+                    step.setPrefSize(24, 8);
+                    boolean isSelected = val <= lyricTextSize.get();
+                    String baseStyle = isSelected 
+                        ? "-fx-background-color: linear-gradient(to right, #00c6ff, #0072ff); -fx-background-radius: 4;" 
+                        : "-fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 4;";
+                    
+                    step.setStyle(baseStyle);
+                    step.setCursor(javafx.scene.Cursor.HAND);
+                    
+                    step.setOnMouseClicked(e -> {
+                        lyricTextSize.set(val);
+                        lyricSizeLabel.setText("Lyric Text Size (" + val + "px)");
+                        this.run();
+                    });
+                    
+                    step.setOnMouseEntered(e -> {
+                        if (!isSelected) {
+                            step.setStyle("-fx-background-color: rgba(255,255,255,0.3); -fx-background-radius: 4;");
+                        }
+                    });
+                    
+                    step.setOnMouseExited(e -> {
+                        if (!isSelected) {
+                            step.setStyle(baseStyle);
+                        }
+                    });
+                    
+                    stepsContainer.getChildren().add(step);
+                }
+            }
+        };
+        updateSteps.run();
+
+        layoutGrid.add(lyricSizeLabel, 0, 4);
+        layoutGrid.add(stepsContainer, 1, 4);
 
         layoutCard.getChildren().add(layoutGrid);
         content.getChildren().add(layoutCard);
@@ -120,16 +180,53 @@ public class SettingsView extends ScrollPane {
         themeCard.getChildren().add(themeContent);
         content.getChildren().add(themeCard);
 
-        // Add Username setting UI
-        VBox usernameCard = createSectionCard("Username");
-        TextField usernameField = new TextField();
-        usernameField.setPromptText("Enter username");
-        usernameField.setText(LibraryManager.getInstance().getUsername());
-        usernameField.textProperty().addListener((obs, oldVal, newVal) -> {
-            LibraryManager.getInstance().setUsername(newVal);
+
+        // --- FOLDERS SECTION ---
+        VBox foldersCard = createSectionCard("Library Folders");
+        VBox foldersListContainer = new VBox(10);
+        
+        Runnable updateFoldersList = new Runnable() {
+            @Override
+            public void run() {
+                foldersListContainer.getChildren().clear();
+                for (String folderPath : LibraryManager.getInstance().getWatchedFolders()) {
+                    HBox row = new HBox(15);
+                    row.setAlignment(Pos.CENTER_LEFT);
+                    row.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-padding: 10; -fx-background-radius: 8;");
+                    
+                    Label pathLabel = new Label(folderPath);
+                    pathLabel.setStyle("-fx-text-fill: white; -fx-font-size: 13px;");
+                    HBox.setHgrow(pathLabel, Priority.ALWAYS);
+                    pathLabel.setMaxWidth(Double.MAX_VALUE);
+                    
+                    Button removeBtn = new Button("Remove");
+                    removeBtn.setStyle("-fx-background-color: rgba(255,76,76,0.8); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 15; -fx-cursor: hand;");
+                    removeBtn.setOnAction(e -> {
+                        LibraryManager.getInstance().removeWatchedFolder(folderPath);
+                        this.run();
+                    });
+                    
+                    row.getChildren().addAll(pathLabel, removeBtn);
+                    foldersListContainer.getChildren().add(row);
+                }
+            }
+        };
+        updateFoldersList.run();
+
+        Button addFolderBtn = new Button("Add Folder");
+        addFolderBtn.setStyle("-fx-background-color: rgba(255,255,255,0.1); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 15; -fx-min-width: 100; -fx-min-height: 30; -fx-cursor: hand;");
+        addFolderBtn.setOnAction(e -> {
+            javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
+            dirChooser.setTitle("Select Library Folder");
+            java.io.File selectedDir = dirChooser.showDialog(getScene().getWindow());
+            if (selectedDir != null) {
+                LibraryManager.getInstance().addWatchedFolder(selectedDir.getAbsolutePath());
+                updateFoldersList.run();
+            }
         });
-        usernameCard.getChildren().add(usernameField);
-        content.getChildren().add(usernameCard);
+
+        foldersCard.getChildren().addAll(foldersListContainer, addFolderBtn);
+        content.getChildren().add(foldersCard);
 
         // --- PLAYLIST BACKUP SECTION ---
         VBox playlistCard = createSectionCard("Playlist Backup & Restore");
@@ -142,7 +239,32 @@ public class SettingsView extends ScrollPane {
 
         ComboBox<String> playlistCombo = new ComboBox<>();
         playlistCombo.setPromptText("Select Playlist");
-        playlistCombo.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-text-fill: white; -fx-background-radius: 6; -fx-min-width: 180;");
+        playlistCombo.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.08); " +
+                "-fx-background-radius: 8; " +
+                "-fx-border-radius: 8; " +
+                "-fx-border-color: rgba(255,255,255,0.2); " +
+                "-fx-border-width: 1; " +
+                "-fx-min-width: 200; " +
+                "-fx-pref-height: 36; " +
+                "-fx-focus-color: transparent; " +
+                "-fx-faint-focus-color: transparent; " +
+                "-fx-cursor: hand;"
+        );
+
+        playlistCombo.setButtonCell(new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(playlistCombo.getPromptText());
+                    setStyle("-fx-text-fill: rgba(255,255,255,0.5); -fx-font-weight: 600; -fx-font-size: 14px; -fx-background-color: transparent;");
+                } else {
+                    setText(item);
+                    setStyle("-fx-text-fill: white; -fx-font-weight: 600; -fx-font-size: 14px; -fx-background-color: transparent;");
+                }
+            }
+        });
         
         // Refresh playlist list dynamically whenever ComboBox is opened/showing
         playlistCombo.setOnShowing(e -> {
@@ -326,20 +448,20 @@ public class SettingsView extends ScrollPane {
     }
 
     private VBox createSectionCard(String sectionTitle) {
-        VBox card = new VBox(15);
-        card.setPadding(new Insets(20));
+        VBox card = new VBox(20);
+        card.setPadding(new Insets(25));
         card.setStyle(
-                "-fx-background-color: rgba(35, 35, 35, 0.4); -fx-background-radius: 12; -fx-border-color: rgba(255,255,255,0.06); -fx-border-width: 1; -fx-border-radius: 12;");
+                "-fx-background-color: rgba(20, 20, 20, 0.6); -fx-background-radius: 16; -fx-border-color: rgba(255,255,255,0.08); -fx-border-width: 1; -fx-border-radius: 16; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 15, 0, 0, 5);");
 
         Label title = new Label(sectionTitle);
-        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-accent;");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: white;");
         card.getChildren().add(title);
         return card;
     }
 
     private Label createSettingLabel(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: white; -fx-font-weight: 500;");
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: rgba(255,255,255,0.85); -fx-font-weight: 600;");
         return label;
     }
 
@@ -347,7 +469,31 @@ public class SettingsView extends ScrollPane {
         ComboBox<String> combo = new ComboBox<>();
         combo.getItems().addAll("Grid View", "List View");
         combo.setValue(gridProperty.get() ? "Grid View" : "List View");
-        combo.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-text-fill: white; -fx-background-radius: 6;");
+        combo.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.08); " +
+                "-fx-background-radius: 8; " +
+                "-fx-border-radius: 8; " +
+                "-fx-border-color: rgba(255,255,255,0.2); " +
+                "-fx-border-width: 1; " +
+                "-fx-pref-width: 150; " +
+                "-fx-pref-height: 36; " +
+                "-fx-focus-color: transparent; " +
+                "-fx-faint-focus-color: transparent; " +
+                "-fx-cursor: hand;"
+        );
+
+        combo.setButtonCell(new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item);
+                    setStyle("-fx-text-fill: white; -fx-font-weight: 600; -fx-font-size: 14px; -fx-background-color: transparent;");
+                }
+            }
+        });
 
         combo.valueProperty().addListener((obs, oldVal, newVal) -> {
             gridProperty.set("Grid View".equals(newVal));
@@ -359,11 +505,11 @@ public class SettingsView extends ScrollPane {
         if (on) {
             btn.setText("ON");
             btn.setStyle(
-                    "-fx-background-color: #38ef7d; -fx-text-fill: black; -fx-font-weight: bold; -fx-background-radius: 15; -fx-min-width: 60; -fx-min-height: 30; -fx-cursor: hand;");
+                    "-fx-background-color: linear-gradient(to right, #00c6ff, #0072ff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-min-width: 70; -fx-min-height: 32; -fx-cursor: hand;");
         } else {
             btn.setText("OFF");
             btn.setStyle(
-                    "-fx-background-color: rgba(255,255,255,0.1); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 15; -fx-min-width: 60; -fx-min-height: 30; -fx-cursor: hand;");
+                    "-fx-background-color: rgba(255,255,255,0.05); -fx-text-fill: rgba(255,255,255,0.5); -fx-font-weight: bold; -fx-background-radius: 20; -fx-border-color: rgba(255,255,255,0.1); -fx-border-radius: 20; -fx-min-width: 70; -fx-min-height: 32; -fx-cursor: hand;");
         }
     }
 
@@ -371,11 +517,11 @@ public class SettingsView extends ScrollPane {
         if (light) {
             btn.setText("LIGHT");
             btn.setStyle(
-                    "-fx-background-color: #ffffff; -fx-text-fill: black; -fx-font-weight: bold; -fx-background-radius: 15; -fx-min-width: 80; -fx-min-height: 30; -fx-cursor: hand;");
+                    "-fx-background-color: #f0f0f0; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-background-radius: 20; -fx-min-width: 90; -fx-min-height: 32; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(255,255,255,0.3), 10, 0, 0, 0);");
         } else {
             btn.setText("DARK");
             btn.setStyle(
-                    "-fx-background-color: #1c1c1e; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 15; -fx-min-width: 80; -fx-min-height: 30; -fx-cursor: hand;");
+                    "-fx-background-color: #1a1a1d; -fx-text-fill: #e0e0e0; -fx-font-weight: bold; -fx-background-radius: 20; -fx-border-color: rgba(255,255,255,0.1); -fx-border-radius: 20; -fx-min-width: 90; -fx-min-height: 32; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 10, 0, 0, 0);");
         }
     }
 }

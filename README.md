@@ -4,6 +4,12 @@ A premium, borderless, and highly customizable modern desktop music player built
 
 ---
 
+## 🆕 What's New in v1.3.0
+- **UI Enhancements**: Complete redesign of the Settings tab for a more premium look. The lyric text size slider was replaced with a custom, smooth segmented control.
+- **Performance Optimizations**: Added UI caching and threading optimizations to make the application feel smoother and faster.
+
+---
+
 ## 🆕 What's New in v1.2.2
 - **UI Enhancements**: Added an "Exit to Mini Player" option to the 3-dot context menu in Full Screen Player.
 - **Bug Fixes**: Resolved compilation errors related to property bindings in MiniPlayerWindow and primitive type checks in FullScreenPlayer.

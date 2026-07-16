@@ -59,6 +59,8 @@ public class LibraryManager {
         void onSongAdded(Song song);
 
         void onSongRemoved(Song song);
+        
+        void onSongUpdated(Song song);
     }
 
     private final List<LibraryListener> listeners = new CopyOnWriteArrayList<>();
@@ -150,6 +152,7 @@ public class LibraryManager {
                         songs.set(index, song);
                     }
                     songMap.put(song.getPath(), song);
+                    listeners.forEach(l -> l.onSongUpdated(song));
                     changed = true;
                 }
             }
@@ -279,9 +282,11 @@ public class LibraryManager {
             List<Song> cached = new Gson().fromJson(reader, new TypeToken<List<Song>>() {
             }.getType());
             if (cached != null) {
-                songs.addAll(cached);
-                for (Song s : songs) {
-                    songMap.put(s.getPath(), s);
+                for (Song song : cached) {
+                    if (new File(song.getPath()).exists()) {
+                        songs.add(song);
+                        songMap.put(song.getPath(), song);
+                    }
                 }
             }
         } catch (Exception e) {

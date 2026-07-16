@@ -10,7 +10,6 @@ import javafx.util.Duration;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class AudioEngine {
@@ -59,16 +58,21 @@ public class AudioEngine {
         currentSong = song;
 
         try {
+            File inputFile = new File(song.getPath());
+            if (!inputFile.exists()) {
+                throw new java.io.FileNotFoundException("File does not exist: " + song.getPath());
+            }
+
             // JavaFX Media requires a URI.
             String uriString;
             String pathLower = song.getPath().toLowerCase();
 
             // Decode any format other than native MP3/WAV to a temporary WAV using FFmpeg
             if (!pathLower.endsWith(".mp3") && !pathLower.endsWith(".wav")) {
-                tempWavFile = decodeWithFFmpeg(new File(song.getPath()));
+                tempWavFile = decodeWithFFmpeg(inputFile);
                 uriString = tempWavFile.toURI().toString();
             } else {
-                uriString = new File(song.getPath()).toURI().toString();
+                uriString = inputFile.toURI().toString();
             }
 
             Media media = new Media(uriString);
@@ -113,6 +117,12 @@ public class AudioEngine {
                     }
                 }
             });
+            
+            mediaPlayer.setOnError(() -> {
+                System.err.println("MediaPlayer error: " + mediaPlayer.getError());
+                state = PlaybackState.STOPPED;
+                // DO NOT call onEndOfMediaListeners here to avoid infinite loops
+            });
 
             mediaPlayer.play();
             state = PlaybackState.PLAYING;
@@ -121,9 +131,7 @@ public class AudioEngine {
             System.err.println("Error playing song: " + e.getMessage());
             e.printStackTrace();
             state = PlaybackState.STOPPED;
-            for (Runnable listener : onEndOfMediaListeners) {
-                listener.run();
-            }
+            // DO NOT call onEndOfMediaListeners here to avoid infinite loop when many files are missing
         }
     }
 
@@ -135,6 +143,11 @@ public class AudioEngine {
         currentSong = song;
 
         try {
+            File inputFile = new File(song.getPath());
+            if (!inputFile.exists()) {
+                throw new java.io.FileNotFoundException("File does not exist: " + song.getPath());
+            }
+
             String uriString;
             String pathLower = song.getPath().toLowerCase();
 
@@ -216,8 +229,18 @@ public class AudioEngine {
 
         Process process = pb.start();
 
+        // Read error stream
+        StringBuilder errorOutput = new StringBuilder();
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(process.getErrorStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                errorOutput.append(line).append("\n");
+            }
+        }
+
         // Wait for the process to complete with a 15-second timeout to prevent hangs
-        boolean finished = process.waitFor(15, TimeUnit.SECONDS);
+        boolean finished = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
         if (!finished) {
             process.destroyForcibly();
             throw new RuntimeException("FFmpeg decoding timed out.");
@@ -225,7 +248,8 @@ public class AudioEngine {
 
         int exitCode = process.exitValue();
         if (exitCode != 0) {
-            throw new RuntimeException("FFmpeg failed to decode file. Exit code: " + exitCode);
+            throw new RuntimeException("FFmpeg failed to decode file. Exit code: " + exitCode + "\nError output:\n"
+                    + errorOutput.toString().trim());
         }
         return tempFile;
     }

@@ -174,7 +174,7 @@ public class MainView extends StackPane {
         albumDetailView = new AlbumDetailView(viewModel);
 
         // Create Settings View
-        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled, viewModel.miniplayerAlwaysOnTopProperty(), () -> {
+        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled, viewModel.miniplayerAlwaysOnTopProperty(), viewModel.lyricTextSizeProperty(), () -> {
             if (playlistView != null) {
                 playlistView.refreshPlaylists();
             }

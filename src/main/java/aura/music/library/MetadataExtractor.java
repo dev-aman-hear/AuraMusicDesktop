@@ -14,6 +14,9 @@ public class MetadataExtractor {
 
     public static Song extract(File file) {
         Song song = new Song(file.getAbsolutePath());
+        if (!file.exists()) {
+            return song;
+        }
         try {
             AudioFile f = AudioFileIO.read(file);
             AudioHeader header = f.getAudioHeader();
@@ -76,7 +79,7 @@ public class MetadataExtractor {
                         }
                     }
                 } catch (Exception ex) {
-                    System.err.println("WAV metadata fallback failed: " + ex.getMessage());
+                    // System.err.println("WAV metadata fallback failed: " + ex.getMessage());
                 }
             }
             // Fallback for M4A files if jaudiotagger fails due to the header parsing bug (ALAC)
@@ -88,12 +91,13 @@ public class MetadataExtractor {
                         fallbackSuccess = true;
                     }
                 } catch (Exception ex) {
-                    System.err.println("M4A metadata fallback failed: " + ex.getMessage());
+                    // System.err.println("M4A metadata fallback failed: " + ex.getMessage());
                 }
             }
             
             if (!fallbackSuccess) {
-                System.err.println("Error extracting metadata for: " + file.getAbsolutePath() + " - " + e.getMessage());
+                // Suppress excessive error logs for unreadable metadata
+                // System.err.println("Error extracting metadata for: " + file.getAbsolutePath() + " - " + e.getMessage());
             }
         }
 
@@ -171,8 +175,11 @@ public class MetadataExtractor {
     }
 
     public static byte[] extractArtworkBytes(String path) {
+        File file = new File(path);
+        if (!file.exists()) {
+            return null;
+        }
         try {
-            File file = new File(path);
             AudioFile f = AudioFileIO.read(file);
             Tag tag = f.getTag();
             if (tag != null) {
@@ -205,7 +212,7 @@ public class MetadataExtractor {
                         }
                     }
                 } catch (Exception ex) {
-                    System.err.println("WAV artwork fallback failed: " + ex.getMessage());
+                    // System.err.println("WAV artwork fallback failed: " + ex.getMessage());
                 }
             }
             // Fallback for M4A files if jaudiotagger fails due to the header parsing bug (ALAC)
@@ -219,12 +226,12 @@ public class MetadataExtractor {
                         }
                     }
                 } catch (Exception ex) {
-                    System.err.println("M4A artwork fallback failed: " + ex.getMessage());
+                    // System.err.println("M4A artwork fallback failed: " + ex.getMessage());
                 }
             }
             
             // Only log if we didn't successfully return via one of the fallbacks
-            System.err.println("Error extracting artwork: " + e.getMessage());
+            // System.err.println("Error extracting artwork: " + e.getMessage());
         }
         return null;
     }

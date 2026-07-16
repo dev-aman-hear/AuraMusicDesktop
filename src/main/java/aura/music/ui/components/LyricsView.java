@@ -120,6 +120,38 @@ public class LyricsView extends StackPane {
             label.setWrapText(true);
             label.setAlignment(Pos.CENTER);
             label.setMaxWidth(Double.MAX_VALUE);
+            
+            label.styleProperty().bind(
+                javafx.beans.binding.Bindings.concat("-fx-font-size: ", viewModel.lyricTextSizeProperty(), "px;")
+            );
+            
+            // Allow CSS to control text fill base, but we will override it via class for active
+            
+            label.setOnMouseEntered(e -> {
+                int idx = lineLabels.indexOf(label);
+                if (idx != currentActiveIndex) {
+                    javafx.animation.ScaleTransition st = new javafx.animation.ScaleTransition(Duration.millis(150), label);
+                    st.setToX(1.02);
+                    st.setToY(1.02);
+                    javafx.animation.FadeTransition ft = new javafx.animation.FadeTransition(Duration.millis(150), label);
+                    ft.setToValue(0.7);
+                    st.play();
+                    ft.play();
+                }
+            });
+            
+            label.setOnMouseExited(e -> {
+                int idx = lineLabels.indexOf(label);
+                if (idx != currentActiveIndex) {
+                    javafx.animation.ScaleTransition st = new javafx.animation.ScaleTransition(Duration.millis(150), label);
+                    st.setToX(idx < currentActiveIndex ? 0.96 : 1.0);
+                    st.setToY(idx < currentActiveIndex ? 0.96 : 1.0);
+                    javafx.animation.FadeTransition ft = new javafx.animation.FadeTransition(Duration.millis(150), label);
+                    ft.setToValue(idx < currentActiveIndex ? 0.18 : 0.45);
+                    st.play();
+                    ft.play();
+                }
+            });
 
             label.setOnMouseClicked(e -> {
                 viewModel.seek(line.getTimestamp() / 1000.0);
@@ -147,12 +179,17 @@ public class LyricsView extends StackPane {
                 if (i == activeIndex) {
                     targetScale = 1.06;
                     targetOpacity = 1.0;
+                    if (!label.getStyleClass().contains("lyric-line-active")) {
+                        label.getStyleClass().add("lyric-line-active");
+                    }
                 } else if (i < activeIndex) {
                     targetScale = 0.96;
                     targetOpacity = 0.18;
+                    label.getStyleClass().remove("lyric-line-active");
                 } else {
                     targetScale = 1.0;
                     targetOpacity = 0.45;
+                    label.getStyleClass().remove("lyric-line-active");
                 }
 
                 // Smoothly animate scale and opacity

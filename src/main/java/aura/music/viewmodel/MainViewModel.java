@@ -438,6 +438,7 @@ public class MainViewModel {
         double volume;
         String repeatMode;
         boolean shuffleMode;
+        java.util.List<String> recentlyPlayedPaths;
     }
 
     public void savePlaybackState() {
@@ -459,6 +460,11 @@ public class MainViewModel {
             state.queuePaths = new java.util.ArrayList<>();
             for (Song s : queue) {
                 state.queuePaths.add(s.getPath());
+            }
+
+            state.recentlyPlayedPaths = new java.util.ArrayList<>();
+            for (Song s : recentlyPlayed) {
+                state.recentlyPlayedPaths.add(s.getPath());
             }
 
             try (java.io.Writer writer = new java.io.FileWriter(stateFile)) {
@@ -496,6 +502,20 @@ public class MainViewModel {
                 } catch (Exception ignored) {}
             }
             shuffleMode.set(state.shuffleMode);
+
+            if (state.recentlyPlayedPaths != null && !state.recentlyPlayedPaths.isEmpty()) {
+                java.util.List<Song> loadedRecent = new java.util.ArrayList<>();
+                for (String path : state.recentlyPlayedPaths) {
+                    Song s = librarySongs.stream()
+                            .filter(song -> song.getPath().equals(path))
+                            .findFirst()
+                            .orElse(null);
+                    if (s != null) {
+                        loadedRecent.add(s);
+                    }
+                }
+                recentlyPlayed.setAll(loadedRecent);
+            }
 
             if (state.queuePaths != null && !state.queuePaths.isEmpty()) {
                 java.util.List<Song> restoredQueue = new java.util.ArrayList<>();

@@ -4,6 +4,14 @@ A premium, borderless, and highly customizable modern desktop music player built
 
 ---
 
+## 🆕 What's New in v1.3.1
+- **UI Enhancements**: 
+  - Revamped "Favorite Songs" into a beautiful horizontal card/tab layout.
+  - Interactive smart cards: Click directly on "Daily Special" or "Up Next" artwork to instantly play them.
+- **State Persistence**: The application now seamlessly remembers your "Recently Played" history and volume preferences across restarts.
+
+---
+
 ## 🆕 What's New in v1.3.0
 - **UI Enhancements**: Complete redesign of the Settings tab for a more premium look. The lyric text size slider was replaced with a custom, smooth segmented control.
 - **Performance Optimizations**: Added UI caching and threading optimizations to make the application feel smoother and faster.

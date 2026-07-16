@@ -13,11 +13,9 @@ public class SettingsView extends ScrollPane {
 
     private final ThemeEngine themeEngine = ThemeEngine.getInstance();
     private final Runnable onPlaylistsChanged;
-    private final javafx.beans.property.IntegerProperty lyricTextSize;
 
     public SettingsView(BooleanProperty albumsGrid, BooleanProperty artistsGrid, BooleanProperty genresGrid, BooleanProperty miniplayerPinned, javafx.beans.property.IntegerProperty lyricTextSize, Runnable onPlaylistsChanged) {
         this.onPlaylistsChanged = onPlaylistsChanged;
-        this.lyricTextSize = lyricTextSize;
         setFitToWidth(true);
         setPannable(true);
         setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");

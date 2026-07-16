@@ -48,7 +48,7 @@ tasks.register('packageAppImage', Exec) {
     description = 'Packages the application as a Windows App Image.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
-        '--main-jar', 'AuraMusicDesktop-1.2.2.jar',
+        '--main-jar', "AuraMusicDesktop-${version}.jar",
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
         '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
@@ -64,7 +64,7 @@ tasks.register('packageExe', Exec) {
     description = 'Packages the application as a Windows EXE installer using jpackage.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
-        '--main-jar', 'AuraMusicDesktop-1.2.2.jar',
+        '--main-jar', "AuraMusicDesktop-${version}.jar",
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
         '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',
@@ -83,7 +83,7 @@ tasks.register('packageMsi', Exec) {
     description = 'Packages the application as a Windows MSI installer using jpackage.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
-        '--main-jar', 'AuraMusicDesktop-1.2.2.jar',
+        '--main-jar', "AuraMusicDesktop-${version}.jar",
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
         '--icon', 'src/main/resources/aura/music/AuraMusicDesktop.ico',

@@ -48,56 +48,63 @@ public class HomeView extends ScrollPane {
         content.setPadding(new Insets(30, 40, 40, 40));
         content.setStyle("-fx-background-color: transparent;");
 
-        // 2. Two-Column Layout (Random Song in 1st column, Favorite Songs in 2nd
+        // 1. Dynamic Greeting Header
+        HBox headerBox = new HBox();
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        Label greetingLabel = new Label();
+        greetingLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: white;");
+        updateGreeting(greetingLabel);
+        headerBox.getChildren().add(greetingLabel);
+        content.getChildren().add(headerBox);
+
+        // Removed Queue and Audio Quality Section from here
+
+        // 2. Two-Column Layout (Daily Special in 1st column, Next in Queue in 2nd
         // column)
-        GridPane twoColumnGrid = createTwoColumnLayout();
+        HBox twoColumnGrid = createTwoColumnLayout();
         content.getChildren().add(twoColumnGrid);
 
         // 3. Recently Played Section
         VBox recentlyPlayed = createRecentlyPlayedSection();
         content.getChildren().add(recentlyPlayed);
 
-        // 4. Top Albums Section
+        // 4. Favorites Section
+        VBox favoritesSection = createFavoritesSection();
+        content.getChildren().add(favoritesSection);
+
+        // 5. Top Albums Section
         VBox topAlbums = createTopAlbumsSection(onAlbumSelect);
         content.getChildren().add(topAlbums);
 
         setContent(content);
     }
 
-    private GridPane createTwoColumnLayout() {
-        GridPane grid = new GridPane();
-        grid.setHgap(35);
-        grid.setVgap(20);
-        grid.setStyle("-fx-background-color: transparent;");
+    private void updateGreeting(Label greetingLabel) {
+        java.time.LocalTime time = java.time.LocalTime.now();
+        int hour = time.getHour();
+        String greeting = "Good Night";
+        if (hour >= 5 && hour < 12) {
+            greeting = "Good Morning";
+        } else if (hour >= 12 && hour < 17) {
+            greeting = "Good Afternoon";
+        } else if (hour >= 17 && hour < 21) {
+            greeting = "Good Evening";
+        }
 
-        ColumnConstraints col1 = new ColumnConstraints();
-        col1.setPercentWidth(50);
-        ColumnConstraints col2 = new ColumnConstraints();
-        col2.setPercentWidth(50);
-        grid.getColumnConstraints().addAll(col1, col2);
-
-        VBox randomSongCol = createRandomSongColumn();
-        VBox favoritesCol = createFavoritesColumn();
-
-        grid.add(randomSongCol, 0, 0);
-        grid.add(favoritesCol, 1, 0);
-
-        return grid;
+        String username = System.getProperty("user.name");
+        if (username == null || username.trim().isEmpty()) {
+            username = "User";
+        }
+        greetingLabel.setText(greeting + ", " + username);
     }
 
-    private VBox createRandomSongColumn() {
-        VBox section = new VBox(15);
-        section.setStyle("-fx-background-color: transparent;");
+    private HBox createTwoColumnLayout() {
+        HBox container = new HBox(40);
 
-        HBox headerRow = new HBox();
-        headerRow.setAlignment(Pos.CENTER_LEFT);
+        VBox currentCard = createSongCard("Daily Special");
+        VBox nextCard = createSongCard("Up Next");
 
-        Label sectionTitle = new Label("Daily Special");
-        sectionTitle.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
+        // Add random roll button to Daily Special
         Button rollBtn = new Button("🎲");
         rollBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;");
@@ -105,117 +112,64 @@ public class HomeView extends ScrollPane {
                 "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;"));
         rollBtn.setOnMouseExited(e -> rollBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 0;"));
-        rollBtn.setOnMouseClicked(e -> pickNewRandomSong());
+        rollBtn.setOnMouseClicked(e -> {
+            e.consume(); // Prevent card click
+            pickNewRandomSong();
+            updateSongCardUI(currentCard, currentRandomSong);
+        });
 
-        headerRow.getChildren().addAll(sectionTitle, spacer, rollBtn);
-
-        VBox card = new VBox(20);
-        card.setPadding(new Insets(25));
-        card.setAlignment(Pos.CENTER);
-        card.setPrefHeight(390);
-        card.setMinHeight(390);
-        card.setMaxHeight(390);
-        card.setBackground(new Background(new BackgroundFill(
-                new LinearGradient(0, 0, 1, 1, true, CycleMethod.NO_CYCLE,
-                        new Stop(0, Color.web("rgba(255, 255, 255, 0.08)")),
-                        new Stop(1, Color.web("rgba(255, 255, 255, 0.02)"))),
-                new CornerRadii(16), Insets.EMPTY)));
-        card.setStyle("-fx-border-color: rgba(255, 255, 255, 0.15); -fx-border-radius: 16; -fx-border-width: 1;");
-
-        DropShadow cardShadow = new DropShadow(20, Color.rgb(0, 0, 0, 0.4));
-        card.setEffect(cardShadow);
-
-        randomArtContainer = new StackPane();
-        randomArtContainer.setPrefSize(240, 240);
-        randomArtContainer.setMinSize(240, 240);
-        randomArtContainer.setMaxSize(240, 240);
-        randomArtContainer.setCursor(javafx.scene.Cursor.HAND);
-        randomArtContainer.setBackground(
-                new Background(new BackgroundFill(Color.web("#2c2c2c"), new CornerRadii(12), Insets.EMPTY)));
-        randomArtContainer.setOnMouseClicked(e -> {
+        currentCard.setCursor(javafx.scene.Cursor.HAND);
+        currentCard.setOnMouseClicked(e -> {
             if (currentRandomSong != null) {
                 viewModel.play(currentRandomSong);
             }
         });
 
-        randomArtView = new ImageView();
-        randomArtView.setFitWidth(240);
-        randomArtView.setFitHeight(240);
-        randomArtView.setPreserveRatio(true);
+        HBox titleBox = (HBox) currentCard.getChildren().get(0);
+        titleBox.getChildren().add(rollBtn);
 
-        Rectangle clip = new Rectangle(240, 240);
-        clip.setArcWidth(24);
-        clip.setArcHeight(24);
-        randomArtView.setClip(clip);
+        nextCard.setCursor(javafx.scene.Cursor.HAND);
+        nextCard.setOnMouseClicked(e -> {
+            int nextIndex = viewModel.currentQueueIndexProperty().get() + 1;
+            if (nextIndex > 0 && nextIndex < viewModel.getQueue().size()) {
+                Song nSong = viewModel.getQueue().get(nextIndex);
+                viewModel.play(nSong);
+            }
+        });
 
-        DropShadow artShadow = new DropShadow(15, Color.rgb(0, 0, 0, 0.5));
-        randomArtContainer.setEffect(artShadow);
+        container.getChildren().addAll(currentCard, nextCard);
 
-        VBox details = new VBox(6);
-        details.setAlignment(Pos.CENTER);
+        Runnable updateUI = () -> {
+            Platform.runLater(() -> {
+                updateSongCardUI(currentCard, currentRandomSong);
 
-        randomTitleContainer = new StackPane();
-        randomTitleContainer.setAlignment(Pos.CENTER);
-        randomArtistContainer = new StackPane();
-        randomArtistContainer.setAlignment(Pos.CENTER);
+                int nextIndex = viewModel.currentQueueIndexProperty().get() + 1;
+                Song nextSong = null;
+                if (nextIndex > 0 && nextIndex < viewModel.getQueue().size()) {
+                    nextSong = viewModel.getQueue().get(nextIndex);
+                }
+                updateSongCardUI(nextCard, nextSong);
+            });
+        };
 
-        details.getChildren().addAll(randomTitleContainer, randomArtistContainer);
+        viewModel.getQueue().addListener((javafx.collections.ListChangeListener<Song>) c -> updateUI.run());
+        viewModel.currentQueueIndexProperty().addListener((obs, o, n) -> updateUI.run());
 
-        card.getChildren().addAll(randomArtContainer, details);
-        section.getChildren().addAll(headerRow, card);
-
+        // Initialize random song
         pickNewRandomSong();
+        updateUI.run();
 
-        return section;
+        return container;
     }
+
 
     private void pickNewRandomSong() {
         List<Song> songs = viewModel.getLibrarySongs();
         if (songs.isEmpty()) {
-            setRandomSong(null);
+            this.currentRandomSong = null;
         } else {
             java.util.Random rand = new java.util.Random();
-            Song song = songs.get(rand.nextInt(songs.size()));
-            setRandomSong(song);
-        }
-    }
-
-    private void setRandomSong(Song song) {
-        this.currentRandomSong = song;
-        if (song == null) {
-            Label noSongsLabel = new Label("No Songs Available");
-            noSongsLabel.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;");
-            randomTitleContainer.getChildren().setAll(noSongsLabel);
-
-            Label addMusicLabel = new Label("Add music to your library");
-            addMusicLabel.setStyle("-fx-text-fill: rgba(255, 255, 255, 0.6); -fx-font-size: 14px;");
-            randomArtistContainer.getChildren().setAll(addMusicLabel);
-
-            randomArtView.setImage(null);
-            randomArtContainer.getChildren().clear();
-            Label placeholder = new Label("♫");
-            placeholder.setStyle("-fx-font-size: 64px; -fx-text-fill: rgba(255,255,255,0.15);");
-            randomArtContainer.getChildren().add(placeholder);
-            return;
-        }
-
-        randomTitleContainer.getChildren().setAll(
-                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(),
-                        "-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;", 240));
-        randomArtistContainer.getChildren().setAll(
-                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(),
-                        "-fx-text-fill: rgba(255, 255, 255, 0.6); -fx-font-size: 14px;", 240));
-
-        byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
-        randomArtContainer.getChildren().clear();
-        if (artBytes != null) {
-            Image img = new Image(new ByteArrayInputStream(artBytes));
-            randomArtView.setImage(img);
-            randomArtContainer.getChildren().add(randomArtView);
-        } else {
-            Label placeholder = new Label("♫");
-            placeholder.setStyle("-fx-font-size: 64px; -fx-text-fill: rgba(255,255,255,0.15);");
-            randomArtContainer.getChildren().add(placeholder);
+            this.currentRandomSong = songs.get(rand.nextInt(songs.size()));
         }
     }
 
@@ -338,32 +292,31 @@ public class HomeView extends ScrollPane {
         return createAlbumCard(title, artist, null, null);
     }
 
-    private VBox createFavoritesColumn() {
+    private VBox createFavoritesSection() {
         VBox section = new VBox(15);
         section.setStyle("-fx-background-color: transparent;");
 
         Label sectionTitle = new Label("Favorite Songs");
         sectionTitle.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        VBox listContainer = new VBox(12);
-        listContainer.setStyle("-fx-background-color: transparent;");
+        HBox cardsRow = new HBox(20);
+        cardsRow.setStyle("-fx-background-color: transparent;");
 
-        rebuildFavorites(listContainer);
+        rebuildFavorites(cardsRow);
 
         viewModel.getLibrarySongs().addListener((javafx.collections.ListChangeListener<Song>) c -> {
-            Platform.runLater(() -> rebuildFavorites(listContainer));
+            Platform.runLater(() -> rebuildFavorites(cardsRow));
         });
 
         viewModel.favoritesVersionProperty().addListener((obs, oldVal, newVal) -> {
-            Platform.runLater(() -> rebuildFavorites(listContainer));
+            Platform.runLater(() -> rebuildFavorites(cardsRow));
         });
 
-        ScrollPane scroll = new ScrollPane(listContainer);
-        scroll.setFitToWidth(true);
+        ScrollPane scroll = new ScrollPane(cardsRow);
+        scroll.setFitToHeight(true);
         scroll.setPannable(true);
         scroll.setHbarPolicy(ScrollBarPolicy.NEVER);
-        scroll.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
-        scroll.setPrefHeight(390);
+        scroll.setVbarPolicy(ScrollBarPolicy.NEVER);
         scroll.setStyle(
                 "-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
 
@@ -371,8 +324,8 @@ public class HomeView extends ScrollPane {
         return section;
     }
 
-    private void rebuildFavorites(VBox listContainer) {
-        listContainer.getChildren().clear();
+    private void rebuildFavorites(HBox container) {
+        container.getChildren().clear();
         List<Song> favs = new java.util.ArrayList<>();
         for (Song s : viewModel.getLibrarySongs()) {
             if (s.isFavorite()) {
@@ -383,13 +336,13 @@ public class HomeView extends ScrollPane {
         if (favs.isEmpty()) {
             Label emptyLabel = new Label("No favorites yet");
             emptyLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 13px; -fx-font-style: italic;");
-            listContainer.getChildren().add(emptyLabel);
+            container.getChildren().add(emptyLabel);
             return;
         }
 
         for (Song song : favs) {
             byte[] art = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
-            listContainer.getChildren().add(createSongGridCell(song, art));
+            container.getChildren().add(createRecentSongCard(song, art));
         }
     }
 
@@ -561,5 +514,167 @@ public class HomeView extends ScrollPane {
         cell.setOnMouseClicked(e -> viewModel.play(song));
 
         return cell;
+    }
+
+    private VBox createSongCard(String title) {
+        VBox card = new VBox(15);
+        card.setPadding(new Insets(25));
+        card.setPrefHeight(480);
+        card.setMinHeight(480);
+        card.setMaxHeight(480);
+        card.setAlignment(Pos.TOP_CENTER);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        card.setBackground(new Background(
+                new BackgroundFill(Color.web("rgba(255,255,255,0.05)"), new CornerRadii(16), Insets.EMPTY)));
+
+        HBox titleBox = new HBox();
+        titleBox.setAlignment(Pos.CENTER_LEFT);
+        Label titleLabel = new Label(title);
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        titleBox.getChildren().addAll(titleLabel, spacer);
+
+        // Artwork
+        StackPane artContainer = new StackPane();
+        artContainer.setPrefSize(300, 300);
+        artContainer.setMinSize(300, 300);
+        artContainer.setMaxSize(300, 300);
+        artContainer.setBackground(
+                new Background(new BackgroundFill(Color.web("#333"), new CornerRadii(12), Insets.EMPTY)));
+
+        // Song Name + Badge
+        HBox nameBox = new HBox(10);
+        nameBox.setAlignment(Pos.CENTER_LEFT);
+        nameBox.setMaxWidth(300);
+        StackPane songContainer = new StackPane();
+        songContainer.setAlignment(Pos.CENTER_LEFT);
+        Region badgeSpacer = new Region();
+        HBox.setHgrow(badgeSpacer, Priority.ALWAYS);
+        Label badgeLabel = new Label("Lossless");
+        badgeLabel.setMinWidth(Region.USE_PREF_SIZE);
+        badgeLabel.setStyle(
+                "-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 3 8; -fx-background-radius: 12; -fx-font-size: 11px;");
+        nameBox.getChildren().addAll(songContainer, badgeSpacer, badgeLabel);
+
+        // Artist Name + Specs
+        HBox artistBox = new HBox(10);
+        artistBox.setAlignment(Pos.CENTER_LEFT);
+        artistBox.setMaxWidth(300);
+        StackPane artistContainer = new StackPane();
+        artistContainer.setAlignment(Pos.CENTER_LEFT);
+        Region specsSpacer = new Region();
+        HBox.setHgrow(specsSpacer, Priority.ALWAYS);
+        Label specsLabel = new Label("16-bit / 44.1 kHz");
+        specsLabel.setMinWidth(Region.USE_PREF_SIZE);
+        specsLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.5); -fx-font-size: 12px;");
+        artistBox.getChildren().addAll(artistContainer, specsSpacer, specsLabel);
+
+        card.getChildren().addAll(titleBox, artContainer, nameBox, artistBox);
+
+        card.getProperties().put("artContainer", artContainer);
+        card.getProperties().put("songContainer", songContainer);
+        card.getProperties().put("badgeLabel", badgeLabel);
+        card.getProperties().put("artistContainer", artistContainer);
+        card.getProperties().put("specsLabel", specsLabel);
+
+        return card;
+    }
+
+    private void updateSongCardUI(VBox card, Song song) {
+        StackPane artContainer = (StackPane) card.getProperties().get("artContainer");
+        StackPane songContainer = (StackPane) card.getProperties().get("songContainer");
+        Label badgeLabel = (Label) card.getProperties().get("badgeLabel");
+        StackPane artistContainer = (StackPane) card.getProperties().get("artistContainer");
+        Label specsLabel = (Label) card.getProperties().get("specsLabel");
+
+        if (song == null) {
+            Label noSongLabel = new Label("No song");
+            noSongLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+            songContainer.getChildren().setAll(noSongLabel);
+
+            Label noArtistLabel = new Label("-");
+            noArtistLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 14px;");
+            artistContainer.getChildren().setAll(noArtistLabel);
+
+            badgeLabel.setVisible(false);
+            badgeLabel.setManaged(false);
+            specsLabel.setText("");
+            artContainer.getChildren().clear();
+            Label placeholder = new Label("🎵");
+            placeholder.setStyle("-fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 40px;");
+            artContainer.getChildren().add(placeholder);
+            card.setOpacity(0.5);
+            return;
+        }
+
+        card.setOpacity(1.0);
+
+        songContainer.getChildren().setAll(
+                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(),
+                        "-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;", 180));
+        artistContainer.getChildren().setAll(
+                aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(),
+                        "-fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 14px;", 180));
+
+        byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
+        artContainer.getChildren().clear();
+        if (artBytes != null) {
+            ImageView artView = new ImageView(new Image(new ByteArrayInputStream(artBytes), 300, 300, true, true));
+            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(300, 300);
+            clip.setArcWidth(24);
+            clip.setArcHeight(24);
+            artView.setClip(clip);
+            artContainer.getChildren().add(artView);
+        } else {
+            Label placeholder = new Label("🎵");
+            placeholder.setStyle("-fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 40px;");
+            artContainer.getChildren().add(placeholder);
+        }
+
+        badgeLabel.setVisible(true);
+        badgeLabel.setManaged(true);
+        String format = "Unknown";
+        String path = song.getPath().toLowerCase();
+        if (path.endsWith(".flac"))
+            format = "FLAC";
+        else if (path.endsWith(".wav"))
+            format = "WAV";
+        else if (path.endsWith(".mp3"))
+            format = "MP3";
+        else if (path.endsWith(".aac") || path.endsWith(".m4a"))
+            format = "AAC";
+        else if (path.endsWith(".ogg"))
+            format = "OGG";
+
+        int bitRate = song.getBitRate();
+        int sampleRate = song.getSampleRate();
+        int bits = song.getBitsPerSample();
+
+        String desc = format;
+        if (bits > 0 || sampleRate > 0) {
+            desc += " • ";
+            if (bits > 0)
+                desc += bits + "-bit / ";
+            if (sampleRate > 0)
+                desc += (sampleRate / 1000.0) + " kHz";
+        } else if (bitRate > 0) {
+            desc += " • " + bitRate + " kbps";
+        }
+        specsLabel.setText(desc);
+
+        if (song.isHiRes()) {
+            badgeLabel.setText("Hi-Res Lossless");
+            badgeLabel.setStyle(
+                    "-fx-background-color: #E2B714; -fx-text-fill: black; -fx-font-weight: bold; -fx-padding: 3 8; -fx-background-radius: 12; -fx-font-size: 11px;");
+        } else if (format.equals("FLAC") || format.equals("WAV")) {
+            badgeLabel.setText("Lossless");
+            badgeLabel.setStyle(
+                    "-fx-background-color: #ffffff; -fx-text-fill: black; -fx-font-weight: bold; -fx-padding: 3 8; -fx-background-radius: 12; -fx-font-size: 11px;");
+        } else {
+            badgeLabel.setText("Lossless");
+            badgeLabel.setStyle(
+                    "-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 3 8; -fx-background-radius: 12; -fx-font-size: 11px;");
+        }
     }
 }

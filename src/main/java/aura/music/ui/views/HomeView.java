@@ -1,7 +1,6 @@
 package aura.music.ui.views;
 
 import aura.music.model.Song;
-import aura.music.ui.components.MenuUtils;
 import aura.music.viewmodel.MainViewModel;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -14,9 +13,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.Stop;
 import javafx.scene.shape.Rectangle;
 import java.io.ByteArrayInputStream;
 import java.util.List;
@@ -28,10 +24,6 @@ public class HomeView extends ScrollPane {
 
     // Random Song UI Components
     private Song currentRandomSong;
-    private ImageView randomArtView;
-    private StackPane randomTitleContainer;
-    private StackPane randomArtistContainer;
-    private StackPane randomArtContainer;
 
     public HomeView(MainViewModel viewModel, java.util.function.Consumer<String> onSectionChange,
             java.util.function.Consumer<String> onAlbumSelect) {
@@ -161,7 +153,6 @@ public class HomeView extends ScrollPane {
 
         return container;
     }
-
 
     private void pickNewRandomSong() {
         List<Song> songs = viewModel.getLibrarySongs();
@@ -447,73 +438,6 @@ public class HomeView extends ScrollPane {
         card.setOnMouseClicked(e -> viewModel.play(song));
 
         return card;
-    }
-
-    private Pane createSongGridCell(Song song, byte[] artBytes) {
-        HBox cell = new HBox(15);
-        cell.setAlignment(Pos.CENTER_LEFT);
-        cell.setPadding(new Insets(10, 14, 10, 14));
-        cell.setStyle("-fx-background-color: rgba(255,255,255,0.03); -fx-background-radius: 8; -fx-cursor: hand;");
-
-        ImageView artView = new ImageView();
-        artView.setFitWidth(56);
-        artView.setFitHeight(56);
-        artView.setPreserveRatio(true);
-
-        Rectangle clip = new Rectangle(56, 56);
-        clip.setArcWidth(12);
-        clip.setArcHeight(12);
-        artView.setClip(clip);
-
-        if (artBytes != null) {
-            artView.setImage(new Image(new ByteArrayInputStream(artBytes)));
-        } else {
-            StackPane placeholder = new StackPane();
-            placeholder.setPrefSize(56, 56);
-            placeholder.setBackground(
-                    new Background(new BackgroundFill(Color.web("#2c2c2c"), new CornerRadii(8), Insets.EMPTY)));
-            Label musicSign = new Label("♫");
-            musicSign.setStyle("-fx-text-fill: rgba(255,255,255,0.2); -fx-font-size: 24px;");
-            placeholder.getChildren().add(musicSign);
-            cell.getChildren().add(placeholder);
-        }
-        if (artBytes != null) {
-            cell.getChildren().add(artView);
-        }
-
-        VBox textBox = new VBox(4);
-        textBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(textBox, Priority.ALWAYS);
-
-        Label titleLabel = new Label(song.getTitle());
-        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
-        titleLabel.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
-        titleLabel.setMaxWidth(260);
-
-        Label artistLabel = new Label(song.getArtist());
-        artistLabel.setStyle("-fx-text-fill: rgba(255, 255, 255, 0.5); -fx-font-size: 12px;");
-        artistLabel.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
-        artistLabel.setMaxWidth(260);
-
-        textBox.getChildren().addAll(titleLabel, artistLabel);
-
-        Button menuBtn = new Button("•••");
-        menuBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 12px; -fx-cursor: hand; -fx-padding: 0 5 0 5;");
-        menuBtn.setOnAction(e -> {
-            e.consume();
-            MenuUtils.showSongContextMenu(menuBtn, song, viewModel);
-        });
-
-        cell.getChildren().addAll(textBox, menuBtn);
-
-        cell.setOnMouseEntered(e -> cell
-                .setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-background-radius: 8; -fx-cursor: hand;"));
-        cell.setOnMouseExited(e -> cell
-                .setStyle("-fx-background-color: rgba(255,255,255,0.03); -fx-background-radius: 8; -fx-cursor: hand;"));
-        cell.setOnMouseClicked(e -> viewModel.play(song));
-
-        return cell;
     }
 
     private VBox createSongCard(String title) {

@@ -20,6 +20,8 @@ public class Song implements Serializable {
     private String embeddedLyrics;
     private long dateAdded;
     private long lastModified;
+    private String artworkUrl;
+    private String externalUrl;
 
     public Song(String path) {
         this.path = path;
@@ -81,6 +83,12 @@ public class Song implements Serializable {
 
     public long getLastModified() { return lastModified; }
     public void setLastModified(long lastModified) { this.lastModified = lastModified; }
+
+    public String getArtworkUrl() { return artworkUrl; }
+    public void setArtworkUrl(String artworkUrl) { this.artworkUrl = artworkUrl; }
+
+    public String getExternalUrl() { return externalUrl; }
+    public void setExternalUrl(String externalUrl) { this.externalUrl = externalUrl; }
 
     public boolean isHiRes() {
         return sampleRate > 48000 || bitsPerSample > 16;

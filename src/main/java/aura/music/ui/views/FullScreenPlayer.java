@@ -48,6 +48,14 @@ public class FullScreenPlayer extends StackPane {
     private final VBox rightCol;
     private final StackPane artContainer;
     private final ImageView artworkView;
+    private final Button videoToggleBtn;
+    private final Button expandVideoBtn;
+    private final StackPane videoTheaterOverlay;
+    private final Button theaterPlayPauseBtn;
+    private final Slider theaterSeek;
+    private final Button theaterBackBtn;
+    private boolean showingYoutubeVideo = true;
+    private boolean videoTheaterMode;
 
     // Metadata & Quality
     private final HBox titleRow;
@@ -72,6 +80,7 @@ public class FullScreenPlayer extends StackPane {
     private javafx.beans.value.ChangeListener<Number> timeListener;
     private javafx.beans.value.ChangeListener<Number> durationListener;
     private javafx.beans.value.ChangeListener<Color> themeListener;
+    private javafx.beans.value.ChangeListener<Number> favoritesListener;
 
     public FullScreenPlayer(MainViewModel viewModel, Runnable onClose, Runnable onExitFullScreen) {
         this.viewModel = viewModel;
@@ -126,18 +135,38 @@ public class FullScreenPlayer extends StackPane {
         artworkView.setPreserveRatio(true);
 
         Rectangle clip = new Rectangle(480, 480);
-        clip.setArcWidth(18);
-        clip.setArcHeight(18);
+        clip.setArcWidth(24);
+        clip.setArcHeight(24);
         artworkView.setClip(clip);
+
+        Rectangle mediaClip = new Rectangle(480, 480);
+        mediaClip.setArcWidth(24);
+        mediaClip.setArcHeight(24);
+        artContainer.setClip(mediaClip);
 
         // Glass border and Shadow
         artContainer.setStyle(
                 "-fx-background-color: rgba(255,255,255,0.03); -fx-background-radius: 18px; -fx-border-color: rgba(255,255,255,0.08); -fx-border-radius: 18px; -fx-border-width: 1px;");
         artContainer.setEffect(new DropShadow(35, Color.rgb(0, 0, 0, 0.6)));
         artContainer.getChildren().add(artworkView);
+        videoToggleBtn = new Button("Artwork");
+        videoToggleBtn.setStyle("-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 14; -fx-cursor: hand;");
+        videoToggleBtn.setVisible(false);
+        videoToggleBtn.setManaged(false);
+        videoToggleBtn.setOnAction(e -> {
+            showingYoutubeVideo = !showingYoutubeVideo;
+            updateYoutubeVideo(viewModel.currentSongProperty().get());
+        });
+        expandVideoBtn = new Button("Expand video");
+        expandVideoBtn.setStyle("-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 14; -fx-cursor: hand;");
+        expandVideoBtn.setVisible(false);
+        expandVideoBtn.setManaged(false);
+        expandVideoBtn.setOnAction(e -> enterVideoTheater());
 
         // Double Click to Like / Favorite
         artContainer.setOnMouseClicked(e -> {
+            Song current = viewModel.currentSongProperty().get();
+            if (showingYoutubeVideo && current != null && current.getPath().startsWith("youtube:")) return;
             if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
                 toggleFavorite();
             }
@@ -232,7 +261,7 @@ public class FullScreenPlayer extends StackPane {
             }
         });
 
-        Button optionsBtn = new Button("•••");
+        Button optionsBtn = new Button("ÔÇóÔÇóÔÇó");
         optionsBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;");
         optionsBtn.setOnAction(e -> {
@@ -331,7 +360,7 @@ public class FullScreenPlayer extends StackPane {
         });
 
         // Top bar for Exit & Close buttons matching screenshot exactly
-        HBox topBar = new HBox(15);
+        VBox topBar = new VBox(6);
         topBar.setPickOnBounds(false); // Make container click-through
         topBar.setAlignment(Pos.TOP_RIGHT);
         topBar.setPadding(new Insets(20));
@@ -352,10 +381,47 @@ public class FullScreenPlayer extends StackPane {
         closeBtnTop.getStyleClass().add("icon-button");
         closeBtnTop.setOnAction(e -> onClose.run());
 
-        topBar.getChildren().addAll(exitFsBtnTop, closeBtnTop);
+        HBox topRow = new HBox(10, expandVideoBtn, exitFsBtnTop, closeBtnTop);
+        topRow.setAlignment(Pos.CENTER_RIGHT);
+        
+        theaterBackBtn = new Button("Back to player");
+        theaterBackBtn.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16; -fx-cursor: hand;");
+        theaterBackBtn.setOnAction(e -> exitVideoTheater());
+        theaterBackBtn.setVisible(false);
+        theaterBackBtn.setManaged(false);
+        
+        topBar.getChildren().addAll(topRow, videoToggleBtn, theaterBackBtn);
 
         splitLayout.getChildren().addAll(leftCol, rightCol);
-        getChildren().addAll(splitLayout, topBar);
+        videoTheaterOverlay = new StackPane();
+        videoTheaterOverlay.setStyle("-fx-background-color: #000000;");
+        videoTheaterOverlay.setVisible(false);
+        videoTheaterOverlay.setManaged(false);
+        theaterPlayPauseBtn = new Button();
+        theaterPlayPauseBtn.setMinSize(42, 42);
+        theaterPlayPauseBtn.setPrefSize(42, 42);
+        theaterPlayPauseBtn.setStyle("-fx-background-color: rgba(255,255,255,0.18); -fx-text-fill: white; -fx-background-radius: 21; -fx-cursor: hand;");
+        theaterPlayPauseBtn.setOnAction(e -> viewModel.togglePlayPause());
+        theaterSeek = new Slider(0, 100, 0);
+        theaterSeek.setPrefWidth(620);
+        theaterSeek.setMinWidth(260);
+        theaterSeek.setMaxWidth(Double.MAX_VALUE);
+        theaterSeek.getStyleClass().add("premium-slider");
+        HBox.setHgrow(theaterSeek, Priority.ALWAYS);
+        theaterSeek.valueProperty().addListener((obs, oldValue, value) -> {
+            if (theaterSeek.isValueChanging()) viewModel.seek(value.doubleValue());
+        });
+        HBox theaterControls = new HBox(14, theaterPlayPauseBtn, theaterSeek);
+        theaterControls.setAlignment(Pos.CENTER);
+        theaterControls.setMaxWidth(900);
+        theaterControls.setMaxHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        theaterControls.setPadding(new Insets(12, 18, 12, 18));
+        theaterControls.setStyle("-fx-background-color: rgba(10,10,10,0.88); -fx-background-radius: 22; -fx-border-color: rgba(255,255,255,0.18); -fx-border-radius: 22; -fx-border-width: 1; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.75), 20, 0, 0, 6);");
+        videoTheaterOverlay.getChildren().add(theaterControls);
+        StackPane.setAlignment(theaterControls, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(theaterControls, new Insets(0, 40, 36, 40));
+
+        getChildren().addAll(splitLayout, videoTheaterOverlay, topBar);
         StackPane.setAlignment(topBar, Pos.TOP_RIGHT);
 
         // Set up initial state of lyrics panel
@@ -373,12 +439,20 @@ public class FullScreenPlayer extends StackPane {
             }
             double total = viewModel.totalDurationProperty().get();
             updateTimeLabels(newVal.doubleValue(), total);
+            if (!theaterSeek.isValueChanging()) theaterSeek.setValue(newVal.doubleValue());
         };
         durationListener = (obs, oldVal, newVal) -> {
             progressSlider.setMax(newVal.doubleValue());
+            theaterSeek.setMax(newVal.doubleValue());
         };
         themeListener = (obs, oldCol, newCol) -> {
             updatePlayState(viewModel.isPlayingProperty().get());
+        };
+        favoritesListener = (obs, oldVal, newVal) -> {
+            Song current = viewModel.currentSongProperty().get();
+            if (current != null) {
+                updateFavoriteButtonState(current);
+            }
         };
 
         // Listeners & Key Events
@@ -392,6 +466,7 @@ public class FullScreenPlayer extends StackPane {
                 viewModel.currentTimeProperty().removeListener(timeListener);
                 viewModel.totalDurationProperty().removeListener(durationListener);
                 ThemeEngine.getInstance().primaryColorProperty().removeListener(themeListener);
+                viewModel.favoritesVersionProperty().removeListener(favoritesListener);
             }
             if (newScene != null) {
                 newScene.addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPress);
@@ -404,6 +479,7 @@ public class FullScreenPlayer extends StackPane {
         viewModel.currentTimeProperty().addListener(timeListener);
         viewModel.totalDurationProperty().addListener(durationListener);
         ThemeEngine.getInstance().primaryColorProperty().addListener(themeListener);
+        viewModel.favoritesVersionProperty().addListener(favoritesListener);
 
         progressSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (progressSlider.isValueChanging()) {
@@ -466,14 +542,17 @@ public class FullScreenPlayer extends StackPane {
                     aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getTitle(),
                             "-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;", 400));
             artistContainer.getChildren().setAll(
-                    aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist() + " • " + song.getAlbum(),
+                    aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist() + " ÔÇó " + song.getAlbum(),
                             "-fx-font-size: 16px; -fx-text-fill: rgba(255,255,255,0.75); -fx-font-weight: 500;", 440));
 
             updateFavoriteButtonState(song);
+            updateYoutubeVideo(song);
 
-            byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
-            if (artBytes != null) {
-                Image image = new Image(new ByteArrayInputStream(artBytes));
+            Image onlineArtwork = song.getArtworkUrl() == null || song.getArtworkUrl().isBlank()
+                    ? null : new Image(song.getArtworkUrl(), true);
+            byte[] artBytes = onlineArtwork == null ? aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath()) : null;
+            if (onlineArtwork != null || artBytes != null) {
+                Image image = onlineArtwork != null ? onlineArtwork : new Image(new ByteArrayInputStream(artBytes));
                 artworkView.setImage(image);
                 bgImageView.setImage(image);
 
@@ -486,12 +565,63 @@ public class FullScreenPlayer extends StackPane {
             }
 
             // Check if song is hi-res
-            if (song.isHiRes()) {
+            if (song.getPath().startsWith("youtube:")) {
+                qualityBadge.setText("YOUTUBE ┬À AUTO QUALITY");
+            } else if (song.getPath().startsWith("http://") || song.getPath().startsWith("https://")) {
+                qualityBadge.setText("ONLINE PREVIEW ┬À AAC");
+            } else if (song.isHiRes()) {
                 qualityBadge.setText("HI-RES LOSSLESS FLAC 24-BIT");
             } else {
                 qualityBadge.setText("LOSSLESS AAC");
             }
         });
+    }
+
+    private void updateYoutubeVideo(Song song) {
+        boolean youtube = song != null && song.getPath().startsWith("youtube:") && YoutubePlayerWindow.hasVideoFor(song);
+        videoToggleBtn.setVisible(youtube);
+        videoToggleBtn.setManaged(youtube);
+        expandVideoBtn.setVisible(youtube);
+        expandVideoBtn.setManaged(youtube);
+        if (!youtube) {
+            exitVideoTheater();
+            YoutubePlayerWindow.hideVideo();
+            return;
+        }
+        if (showingYoutubeVideo) {
+            YoutubePlayerWindow.showVideoIn(artContainer, true);
+            videoToggleBtn.setText("Artwork");
+        } else {
+            YoutubePlayerWindow.hideVideo();
+            videoToggleBtn.setText("Video");
+        }
+    }
+
+    private void enterVideoTheater() {
+        Song song = viewModel.currentSongProperty().get();
+        if (song == null || !YoutubePlayerWindow.hasVideoFor(song)) return;
+        videoTheaterMode = true;
+        videoTheaterOverlay.setVisible(true);
+        videoTheaterOverlay.setManaged(true);
+        videoToggleBtn.setVisible(false);
+        videoToggleBtn.setManaged(false);
+        expandVideoBtn.setVisible(false);
+        expandVideoBtn.setManaged(false);
+        theaterBackBtn.setVisible(true);
+        theaterBackBtn.setManaged(true);
+        YoutubePlayerWindow.showVideoTheaterIn(videoTheaterOverlay);
+        videoTheaterOverlay.getChildren().get(0).toFront();
+        updatePlayState(viewModel.isPlayingProperty().get());
+    }
+
+    private void exitVideoTheater() {
+        if (!videoTheaterMode) return;
+        videoTheaterMode = false;
+        videoTheaterOverlay.setVisible(false);
+        videoTheaterOverlay.setManaged(false);
+        theaterBackBtn.setVisible(false);
+        theaterBackBtn.setManaged(false);
+        updateYoutubeVideo(viewModel.currentSongProperty().get());
     }
 
     private void updateAmbientGlow(Image image) {
@@ -509,6 +639,7 @@ public class FullScreenPlayer extends StackPane {
             Color iconColor = Color.WHITE;
             if (playing) {
                 playPauseButton.setGraphic(SVGIcons.createPauseIcon(22, iconColor));
+                theaterPlayPauseBtn.setGraphic(SVGIcons.createPauseIcon(18, iconColor));
                 javafx.animation.ScaleTransition st = new javafx.animation.ScaleTransition(Duration.millis(400),
                         artContainer);
                 st.setToX(1.0);
@@ -516,6 +647,7 @@ public class FullScreenPlayer extends StackPane {
                 st.play();
             } else {
                 playPauseButton.setGraphic(SVGIcons.createPlayIcon(22, iconColor));
+                theaterPlayPauseBtn.setGraphic(SVGIcons.createPlayIcon(18, iconColor));
                 javafx.animation.ScaleTransition st = new javafx.animation.ScaleTransition(Duration.millis(400),
                         artContainer);
                 st.setToX(0.92);

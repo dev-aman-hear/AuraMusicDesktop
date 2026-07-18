@@ -58,8 +58,9 @@ public class AudioEngine {
         currentSong = song;
 
         try {
-            File inputFile = new File(song.getPath());
-            if (!inputFile.exists()) {
+            boolean remoteStream = song.getPath().startsWith("http://") || song.getPath().startsWith("https://");
+            File inputFile = remoteStream ? null : new File(song.getPath());
+            if (!remoteStream && !inputFile.exists()) {
                 throw new java.io.FileNotFoundException("File does not exist: " + song.getPath());
             }
 
@@ -68,7 +69,9 @@ public class AudioEngine {
             String pathLower = song.getPath().toLowerCase();
 
             // Decode any format other than native MP3/WAV to a temporary WAV using FFmpeg
-            if (!pathLower.endsWith(".mp3") && !pathLower.endsWith(".wav")) {
+            if (remoteStream) {
+                uriString = song.getPath();
+            } else if (!pathLower.endsWith(".mp3") && !pathLower.endsWith(".wav")) {
                 tempWavFile = decodeWithFFmpeg(inputFile);
                 uriString = tempWavFile.toURI().toString();
             } else {

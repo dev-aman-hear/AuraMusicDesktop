@@ -14,7 +14,7 @@ public class SettingsView extends ScrollPane {
     private final ThemeEngine themeEngine = ThemeEngine.getInstance();
     private final Runnable onPlaylistsChanged;
 
-    public SettingsView(BooleanProperty albumsGrid, BooleanProperty artistsGrid, BooleanProperty genresGrid, BooleanProperty miniplayerPinned, javafx.beans.property.IntegerProperty lyricTextSize, Runnable onPlaylistsChanged) {
+    public SettingsView(BooleanProperty albumsGrid, BooleanProperty artistsGrid, BooleanProperty genresGrid, BooleanProperty miniplayerPinned, BooleanProperty onlineMusicEnabled, javafx.beans.property.StringProperty youtubeApiKey, javafx.beans.property.IntegerProperty lyricTextSize, Runnable onPlaylistsChanged) {
         this.onPlaylistsChanged = onPlaylistsChanged;
         setFitToWidth(true);
         setPannable(true);
@@ -72,6 +72,30 @@ public class SettingsView extends ScrollPane {
         layoutGrid.add(miniplayerLabel, 0, 3);
         layoutGrid.add(miniplayerToggle, 1, 3);
 
+        Label onlineMusicLabel = createSettingLabel("Online music previews");
+        Button onlineMusicToggle = new Button();
+        updateToggleButtonState(onlineMusicToggle, onlineMusicEnabled.get());
+        onlineMusicToggle.setOnAction(e -> {
+            boolean active = !onlineMusicEnabled.get();
+            LibraryManager.getInstance().setOnlineMusicEnabled(active);
+            updateToggleButtonState(onlineMusicToggle, active);
+        });
+        onlineMusicEnabled.addListener((obs, oldValue, active) -> updateToggleButtonState(onlineMusicToggle, active));
+        layoutGrid.add(onlineMusicLabel, 0, 4);
+        layoutGrid.add(onlineMusicToggle, 1, 4);
+
+        Label youtubeKeyLabel = createSettingLabel("YouTube Data API key");
+        PasswordField youtubeKeyField = new PasswordField();
+        youtubeKeyField.setPromptText("Paste key to enable YouTube search");
+        youtubeKeyField.setText(youtubeApiKey.get());
+        youtubeKeyField.setPrefWidth(260);
+        youtubeKeyField.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-text-fill: white; -fx-prompt-text-fill: rgba(255,255,255,0.45); -fx-background-radius: 8;");
+        youtubeKeyField.focusedProperty().addListener((obs, wasFocused, focused) -> {
+            if (!focused) LibraryManager.getInstance().setYoutubeApiKey(youtubeKeyField.getText());
+        });
+        layoutGrid.add(youtubeKeyLabel, 0, 5);
+        layoutGrid.add(youtubeKeyField, 1, 5);
+
         Label lyricSizeLabel = createSettingLabel("Lyric Text Size (" + lyricTextSize.get() + "px)");
         
         HBox stepsContainer = new HBox(6);
@@ -117,8 +141,8 @@ public class SettingsView extends ScrollPane {
         };
         updateSteps.run();
 
-        layoutGrid.add(lyricSizeLabel, 0, 4);
-        layoutGrid.add(stepsContainer, 1, 4);
+        layoutGrid.add(lyricSizeLabel, 0, 6);
+        layoutGrid.add(stepsContainer, 1, 6);
 
         layoutCard.getChildren().add(layoutGrid);
         content.getChildren().add(layoutCard);

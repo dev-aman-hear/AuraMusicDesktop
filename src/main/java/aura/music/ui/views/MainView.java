@@ -71,6 +71,7 @@ public class MainView extends StackPane {
     private GridPane genresGridPane;
     private HomeView homeView;
     private NewView newView;
+    private OnlineMusicView onlineMusicView;
     private AlbumDetailView albumDetailView;
     private final java.util.List<Button> sidebarButtons = new java.util.ArrayList<>();
     private Region sidebarSpacer;
@@ -106,6 +107,7 @@ public class MainView extends StackPane {
     private Button queueBtn;
     private Button homeBtn;
     private Button browseBtn;
+    private Button onlineBtn;
     private Button albumsBtn;
     private Button artistsBtn;
     private Button genresBtn;
@@ -170,11 +172,14 @@ public class MainView extends StackPane {
         // Create New View
         newView = new NewView(viewModel, this::selectGenre, this::selectArtist);
 
+        // Online discovery is intentionally separate from the local-library Browse page.
+        onlineMusicView = new OnlineMusicView(viewModel);
+
         // Create Album Detail View
         albumDetailView = new AlbumDetailView(viewModel);
 
         // Create Settings View
-        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled, viewModel.miniplayerAlwaysOnTopProperty(), viewModel.lyricTextSizeProperty(), () -> {
+        settingsView = new SettingsView(albumsGridViewEnabled, artistsGridViewEnabled, genresGridViewEnabled, viewModel.miniplayerAlwaysOnTopProperty(), viewModel.onlineMusicEnabledProperty(), viewModel.youtubeApiKeyProperty(), viewModel.lyricTextSizeProperty(), () -> {
             if (playlistView != null) {
                 playlistView.refreshPlaylists();
             }
@@ -202,7 +207,7 @@ public class MainView extends StackPane {
             }
         });
 
-        centerContentContainer.getChildren().addAll(centerSection, homeView, newView, albumDetailView, settingsView,
+        centerContentContainer.getChildren().addAll(centerSection, homeView, newView, onlineMusicView, albumDetailView, settingsView,
                 playlistView);
 
         // --- TOP PLAYBACK BAR (Next to Sidebar) ---
@@ -255,12 +260,19 @@ public class MainView extends StackPane {
         // Initially hide all except homeView
         centerSection.setVisible(false);
         newView.setVisible(false);
+        onlineMusicView.setVisible(false);
         albumDetailView.setVisible(false);
         settingsView.setVisible(false);
         playlistView.setVisible(false);
         homeView.setVisible(true);
         currentActiveView = homeView;
         updateBackBtnVisibility();
+
+        viewModel.onlineMusicEnabledProperty().addListener((obs, wasEnabled, enabled) -> {
+            if (!enabled && currentActiveView == onlineMusicView) {
+                showHomeView(false);
+            }
+        });
 
         // Invalidate cache if library changes
         viewModel.getLibrarySongs().addListener((javafx.collections.ListChangeListener<Song>) c -> {
@@ -516,6 +528,13 @@ public class MainView extends StackPane {
     private void showNewView() {
         updateActiveSidebarButton("Browse");
         switchViewWithFade(newView);
+    }
+
+    private void showOnlineMusicView() {
+        if (!viewModel.onlineMusicEnabledProperty().get()) return;
+        updateActiveSidebarButton("Online");
+        onlineMusicView.refreshTrending();
+        switchViewWithFade(onlineMusicView);
     }
 
     private void showAlbumsGrid() {
@@ -909,8 +928,11 @@ public class MainView extends StackPane {
         homeBtn = createSidebarButton("Home", SVGIcons.createHomeIcon(16, Color.WHITE));
         homeBtn.getStyleClass().add("sidebar-item-active");
         browseBtn = createSidebarButton("Browse", SVGIcons.createCompassIcon(16, Color.WHITE));
+        onlineBtn = createSidebarButton("Online", SVGIcons.createRadioIcon(16, Color.WHITE));
+        onlineBtn.visibleProperty().bind(viewModel.onlineMusicEnabledProperty());
+        onlineBtn.managedProperty().bind(viewModel.onlineMusicEnabledProperty());
 
-        sidebar.getChildren().addAll(homeBtn, browseBtn);
+        sidebar.getChildren().addAll(homeBtn, browseBtn, onlineBtn);
 
         libraryHeader = new Label("Library");
         libraryHeader.setStyle(
@@ -926,7 +948,7 @@ public class MainView extends StackPane {
 
         sidebar.getChildren().addAll(albumsBtn, artistsBtn, genresBtn, songsBtn, favoritesBtn, playlistsBtn);
 
-        sidebarButtons.addAll(java.util.Arrays.asList(homeBtn, browseBtn, albumsBtn, artistsBtn, genresBtn, songsBtn,
+        sidebarButtons.addAll(java.util.Arrays.asList(homeBtn, browseBtn, onlineBtn, albumsBtn, artistsBtn, genresBtn, songsBtn,
                 favoritesBtn, playlistsBtn));
 
         // Click actions
@@ -941,6 +963,8 @@ public class MainView extends StackPane {
                     showHomeView();
                 } else if (btn == browseBtn) {
                     showNewView();
+                } else if (btn == onlineBtn) {
+                    showOnlineMusicView();
                 } else if (btn == albumsBtn) {
                     showAlbumsGrid();
                 } else if (btn == artistsBtn) {
@@ -1677,6 +1701,18 @@ public class MainView extends StackPane {
         java.util.function.BiConsumer<Song, Boolean> formatQuality = (song, isInit) -> {
             if (song != null) {
                 String pathLower = song.getPath().toLowerCase();
+                if (pathLower.startsWith("youtube:")) {
+                    qHeader.setText("YOUTUBE · AUTO QUALITY");
+                    qDetails.setText("Official embedded stream · Provider-controlled quality");
+                    waveBtn.setVisible(true);
+                    return;
+                }
+                if (pathLower.startsWith("http://") || pathLower.startsWith("https://")) {
+                    qHeader.setText("ONLINE PREVIEW · AAC");
+                    qDetails.setText("Streaming preview · Provider-controlled quality");
+                    waveBtn.setVisible(true);
+                    return;
+                }
                 String codec = "AAC";
                 if (pathLower.endsWith(".flac")) {
                     codec = "FLAC";
@@ -1932,6 +1968,7 @@ public class MainView extends StackPane {
                 stage.setFullScreen(false);
             }
             getChildren().remove(fullScreenPlayer);
+            aura.music.ui.views.YoutubePlayerWindow.hideVideo();
             fullScreenPlayer = null;
         }, () -> {
             Stage stage = (Stage) getScene().getWindow();
@@ -1942,6 +1979,7 @@ public class MainView extends StackPane {
                 miniPlayer.show();
             }
             getChildren().remove(fullScreenPlayer);
+            aura.music.ui.views.YoutubePlayerWindow.hideVideo();
             fullScreenPlayer = null;
         });
 
@@ -1967,14 +2005,16 @@ public class MainView extends StackPane {
                 miniTitleContainer.getChildren().setAll(
                         aura.music.ui.MarqueeUtils.createMarqueeLabel(newSong.getTitle(),
                                 "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: rgba(255,255,255,0.8);",
-                                180));
+                                260));
                 miniArtistContainer.getChildren().setAll(
                         aura.music.ui.MarqueeUtils.createMarqueeLabel(newSong.getArtist(),
-                                "-fx-text-fill: rgba(255,255,255,0.5); -fx-font-size: 11px;", 180));
+                                "-fx-text-fill: rgba(255,255,255,0.5); -fx-font-size: 11px;", 280));
 
-                byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(newSong.getPath());
-                if (artBytes != null) {
-                    Image image = new Image(new ByteArrayInputStream(artBytes));
+                Image onlineArtwork = newSong.getArtworkUrl() == null || newSong.getArtworkUrl().isBlank()
+                        ? null : new Image(newSong.getArtworkUrl(), true);
+                byte[] artBytes = onlineArtwork == null ? aura.music.library.MetadataExtractor.extractArtworkBytes(newSong.getPath()) : null;
+                if (onlineArtwork != null || artBytes != null) {
+                    Image image = onlineArtwork != null ? onlineArtwork : new Image(new ByteArrayInputStream(artBytes));
                     miniArtwork.setImage(image);
                     bgImageView.setImage(image);
                 } else {

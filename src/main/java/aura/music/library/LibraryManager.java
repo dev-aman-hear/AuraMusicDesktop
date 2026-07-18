@@ -36,6 +36,10 @@ public class LibraryManager {
     // New username field with default
     private final javafx.beans.property.SimpleStringProperty usernameProperty = new javafx.beans.property.SimpleStringProperty(
             "Master");
+    private final javafx.beans.property.SimpleBooleanProperty onlineMusicEnabledProperty =
+            new javafx.beans.property.SimpleBooleanProperty(false);
+    private final javafx.beans.property.SimpleStringProperty youtubeApiKeyProperty =
+            new javafx.beans.property.SimpleStringProperty("");
 
     private WatchService watchService;
     private final Map<WatchKey, Path> watchKeys = new ConcurrentHashMap<>();
@@ -54,6 +58,30 @@ public class LibraryManager {
     public javafx.beans.property.StringProperty usernameProperty() {
         return usernameProperty;
     }
+
+    public boolean isOnlineMusicEnabled() {
+        return onlineMusicEnabledProperty.get();
+    }
+
+    public void setOnlineMusicEnabled(boolean enabled) {
+        onlineMusicEnabledProperty.set(enabled);
+        saveSettings();
+    }
+
+    public javafx.beans.property.BooleanProperty onlineMusicEnabledProperty() {
+        return onlineMusicEnabledProperty;
+    }
+
+    public String getYoutubeApiKey() { return youtubeApiKeyProperty.get(); }
+
+    /** Stored in the current user's OS preferences, never in the project or settings JSON. */
+    public void setYoutubeApiKey(String apiKey) {
+        String value = apiKey == null ? "" : apiKey.trim();
+        youtubeApiKeyProperty.set(value);
+        java.util.prefs.Preferences.userNodeForPackage(LibraryManager.class).put("youtubeDataApiKey", value);
+    }
+
+    public javafx.beans.property.StringProperty youtubeApiKeyProperty() { return youtubeApiKeyProperty; }
 
     public interface LibraryListener {
         void onSongAdded(Song song);
@@ -81,6 +109,8 @@ public class LibraryManager {
         libraryCacheFile = appDataPath + File.separator + "library_cache.json";
         playlistsFile = appDataPath + File.separator + "playlists.json";
         settingsFile = appDataPath + File.separator + "settings.json";
+        youtubeApiKeyProperty.set(java.util.prefs.Preferences.userNodeForPackage(LibraryManager.class)
+                .get("youtubeDataApiKey", ""));
 
         loadLibraryFromCache();
         loadPlaylists();
@@ -339,6 +369,7 @@ public class LibraryManager {
             java.util.Map<String, Object> map = new java.util.HashMap<>();
             map.put("watchedFolders", watchedFolders);
             map.put("username", getUsername());
+            map.put("onlineMusicEnabled", isOnlineMusicEnabled());
             new GsonBuilder().setPrettyPrinting().create().toJson(map, writer);
         } catch (IOException e) {
             System.err.println("Failed to save settings: " + e.getMessage());
@@ -363,7 +394,10 @@ public class LibraryManager {
                     }
                 }
                 if (obj.has("username")) {
-                    setUsername(obj.get("username").getAsString());
+                    usernameProperty.set(obj.get("username").getAsString());
+                }
+                if (obj.has("onlineMusicEnabled")) {
+                    onlineMusicEnabledProperty.set(obj.get("onlineMusicEnabled").getAsBoolean());
                 }
             } else if (json.isJsonArray()) {
                 // Legacy format: array of strings (watched folders)

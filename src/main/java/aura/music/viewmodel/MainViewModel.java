@@ -15,6 +15,7 @@ import javafx.scene.image.Image;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.UUID;
+import java.util.function.Consumer;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 
@@ -24,6 +25,12 @@ public class MainViewModel {
     private final LibraryManager libraryManager = LibraryManager.getInstance();
     private final ThemeEngine themeEngine = ThemeEngine.getInstance();
     private PauseTransition sleepTimer;
+    // Used by provider-owned playback (currently YouTube's official embedded player).
+    private boolean externalPlaybackActive;
+    private Runnable externalResume;
+    private Runnable externalPause;
+    private Runnable externalStop;
+    private Consumer<Double> externalSeek;
 
     // Player Properties
     private final ObjectProperty<Song> currentSong = new SimpleObjectProperty<>();
@@ -45,6 +52,9 @@ public class MainViewModel {
 
     private final BooleanProperty miniplayerAlwaysOnTop = new SimpleBooleanProperty(true);
     public BooleanProperty miniplayerAlwaysOnTopProperty() { return miniplayerAlwaysOnTop; }
+
+    public BooleanProperty onlineMusicEnabledProperty() { return libraryManager.onlineMusicEnabledProperty(); }
+    public StringProperty youtubeApiKeyProperty() { return libraryManager.youtubeApiKeyProperty(); }
 
     // Lists
     private final ObservableList<Song> librarySongs = FXCollections.observableArrayList();
@@ -189,10 +199,33 @@ public class MainViewModel {
         return searchResults;
     }
 
+    /** Finds the user's local full track for an online catalog result, when available. */
+    public Song findLocalTrack(String title, String artist) {
+        String wantedTitle = normalizeTrackText(title);
+        String wantedArtist = normalizeTrackText(artist);
+        if (wantedTitle.isEmpty()) return null;
+
+        for (Song song : librarySongs) {
+            if (!normalizeTrackText(song.getTitle()).equals(wantedTitle)) continue;
+            if (normalizeTrackText(song.getArtist()).equals(wantedArtist)) return song;
+        }
+        return null;
+    }
+
+    private String normalizeTrackText(String value) {
+        if (value == null) return "";
+        return value.toLowerCase(java.util.Locale.ROOT)
+                .replaceAll("\\s*\\([^)]*\\)|\\s*\\[[^]]*]", "")
+                .replaceAll("[^a-z0-9]", "")
+                .trim();
+    }
+
     // Control Methods
     public void play(Song song) {
         if (song == null)
             return;
+
+        stopExternalPlayback();
 
         // Add to recently played list
         Platform.runLater(() -> {
@@ -203,7 +236,14 @@ public class MainViewModel {
             }
         });
 
+        // Online previews are standalone streams, so ending a preview must not jump into
+        // the user's local library queue.
+        boolean onlinePreview = song.getPath().startsWith("http://") || song.getPath().startsWith("https://");
+        if (onlinePreview) {
+            queue.setAll(song);
+            currentQueueIndex.set(0);
         // If the song is already in queue, find its index. Otherwise, set up the queue.
+        } else {
         int idx = queue.indexOf(song);
         if (idx != -1) {
             currentQueueIndex.set(idx);
@@ -211,6 +251,7 @@ public class MainViewModel {
             // Set queue to library songs starting from this song as fallback
             queue.setAll(librarySongs);
             currentQueueIndex.set(queue.indexOf(song));
+        }
         }
 
         currentSong.set(song);
@@ -231,6 +272,16 @@ public class MainViewModel {
     }
 
     public void togglePlayPause() {
+        if (externalPlaybackActive) {
+            if (isPlaying.get()) {
+                externalPause.run();
+                isPlaying.set(false);
+            } else {
+                externalResume.run();
+                isPlaying.set(true);
+            }
+            return;
+        }
         if (audioEngine.getState() == AudioEngine.PlaybackState.PLAYING) {
             audioEngine.pause();
             isPlaying.set(false);
@@ -246,6 +297,10 @@ public class MainViewModel {
     }
 
     public void next() {
+        if (externalPlaybackActive) {
+            seek(0);
+            return;
+        }
         if (repeatMode.get() == RepeatMode.ONE) {
             playQueueIndex(currentQueueIndex.get());
             return;
@@ -275,6 +330,10 @@ public class MainViewModel {
     }
 
     public void previous() {
+        if (externalPlaybackActive) {
+            seek(0);
+            return;
+        }
         if (repeatMode.get() == RepeatMode.ONE) {
             playQueueIndex(currentQueueIndex.get());
             return;
@@ -303,7 +362,58 @@ public class MainViewModel {
     }
 
     public void seek(double seconds) {
+        if (externalPlaybackActive) {
+            externalSeek.accept(seconds);
+            currentTime.set(Math.max(0, seconds));
+            return;
+        }
         audioEngine.seek(seconds);
+    }
+
+    public void startExternalPlayback(Song song, Runnable resume, Runnable pause, Runnable stop, Consumer<Double> seek) {
+        stopExternalPlayback();
+        // A provider-owned stream must never overlap the previously playing local file.
+        audioEngine.stop();
+        lyricsLines.clear();
+        activeLyricLineIndex.set(-1);
+        externalPlaybackActive = true;
+        externalResume = resume;
+        externalPause = pause;
+        externalStop = stop;
+        externalSeek = seek;
+        queue.setAll(song);
+        currentQueueIndex.set(0);
+        currentSong.set(song);
+        currentTime.set(0);
+        totalDuration.set(0);
+        isPlaying.set(true);
+        updateFilteredQueue();
+        loadExternalLyrics(song);
+    }
+
+    public void updateExternalPlayback(double position, double duration, boolean playing) {
+        if (!externalPlaybackActive) return;
+        currentTime.set(Math.max(0, position));
+        if (duration > 0) totalDuration.set(duration);
+        isPlaying.set(playing);
+    }
+
+    public void finishExternalPlayback(Song song) {
+        if (externalPlaybackActive && currentSong.get() == song) {
+            externalPlaybackActive = false;
+            externalResume = externalPause = externalStop = null;
+            externalSeek = null;
+            isPlaying.set(false);
+        }
+    }
+
+    private void stopExternalPlayback() {
+        if (!externalPlaybackActive) return;
+        Runnable stop = externalStop;
+        externalPlaybackActive = false;
+        externalResume = externalPause = externalStop = null;
+        externalSeek = null;
+        if (stop != null) stop.run();
     }
 
     public void performSearch(String query) {
@@ -317,9 +427,11 @@ public class MainViewModel {
             return;
 
         // 1. Update Theme from Album Art
-        byte[] artworkBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
-        if (artworkBytes != null) {
-            Image image = new Image(new ByteArrayInputStream(artworkBytes));
+        Image onlineArtwork = song.getArtworkUrl() == null || song.getArtworkUrl().isBlank()
+                ? null : new Image(song.getArtworkUrl(), true);
+        byte[] artworkBytes = onlineArtwork == null ? aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath()) : null;
+        if (onlineArtwork != null || artworkBytes != null) {
+            Image image = onlineArtwork != null ? onlineArtwork : new Image(new ByteArrayInputStream(artworkBytes));
             themeEngine.updateThemeFromImage(image);
         } else {
             themeEngine.updateThemeFromImage(null);
@@ -360,6 +472,18 @@ public class MainViewModel {
                     }
                 });
         }
+    }
+
+    /** Loads publicly available synchronized lyrics for provider-owned streams when available. */
+    private void loadExternalLyrics(Song song) {
+        aura.music.lyrics.OnlineLyricsService.fetchLyricsAsync(song.getTitle(), song.getArtist(), song.getAlbum())
+                .thenAccept(lyrics -> {
+                    if (lyrics != null && !lyrics.isBlank() && currentSong.get() == song) {
+                        Platform.runLater(() -> {
+                            if (currentSong.get() == song) lyricsLines.setAll(LyricParser.parse(lyrics));
+                        });
+                    }
+                });
     }
 
     private void updateActiveLyricIndex(double currentMs) {

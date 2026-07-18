@@ -62,6 +62,7 @@ public class MiniPlayerWindow extends Stage {
     private ImageView artworkView;
     private Region dimOverlay;
     private VBox mainLayout;
+    private VBox windowControls;
 
     // Header elements
     private HBox headerBox;
@@ -105,6 +106,8 @@ public class MiniPlayerWindow extends Stage {
     private Rectangle thumbClip;
     private Button restoreFromThumbBtn;
     private Button fsBtn;
+    private Button videoBtn;
+    private boolean showingYoutubeVideo;
     private MiniPlayerViewMode previousCompactMode = MiniPlayerViewMode.COMPACT;
     private Color dominantColor = Color.web("#2a2a2a"); // default, updated per song
     private final java.util.Map<String, Image> artworkCache = new java.util.HashMap<>();
@@ -324,7 +327,7 @@ public class MiniPlayerWindow extends Stage {
                 headerQualityBadgeBox);
 
         // Right Side: Window Control Buttons – live as a TOP-RIGHT overlay on root
-        HBox windowControls = new HBox(4);
+        windowControls = new VBox(4);
         windowControls.setAlignment(Pos.TOP_RIGHT);
         windowControls.setPadding(new Insets(12, 16, 6, 16));
         windowControls.setPickOnBounds(false);
@@ -362,6 +365,16 @@ public class MiniPlayerWindow extends Stage {
         fsBtn.setTooltip(new Tooltip("Fullscreen Mode"));
         fsBtn.setOnAction(e -> openFullScreenPlayer());
 
+        videoBtn = new Button("Video");
+        videoBtn.setStyle("-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: white; -fx-font-size: 10px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 3 7;");
+        videoBtn.setVisible(false);
+        videoBtn.setManaged(false);
+        videoBtn.setTooltip(new Tooltip("Show YouTube video"));
+        videoBtn.setOnAction(e -> {
+            showingYoutubeVideo = !showingYoutubeVideo;
+            updateYoutubeVideo(viewModel.currentSongProperty().get());
+        });
+
         Button closeBtn = new Button();
         SVGPath closeIcon = new SVGPath();
         closeIcon.setContent(
@@ -375,7 +388,9 @@ public class MiniPlayerWindow extends Stage {
         closeBtn.setOnMouseExited(e -> closeBtn.setOpacity(0.75));
         closeBtn.setOnAction(e -> restoreMainPlayer());
 
-        windowControls.getChildren().addAll(minBtn, fsBtn, closeBtn);
+        HBox topWindowControls = new HBox(4, minBtn, fsBtn, closeBtn);
+        topWindowControls.setAlignment(Pos.TOP_RIGHT);
+        windowControls.getChildren().addAll(topWindowControls, videoBtn);
 
         // Overlay anchor: place windowControls at the very top-right of root
         StackPane.setAlignment(windowControls, Pos.TOP_RIGHT);
@@ -722,6 +737,10 @@ public class MiniPlayerWindow extends Stage {
 
     private void setViewMode(MiniPlayerViewMode mode) {
         currentMode = mode;
+        if (mode != MiniPlayerViewMode.ARTWORK && showingYoutubeVideo) {
+            showingYoutubeVideo = false;
+            YoutubePlayerWindow.hideVideo();
+        }
 
         if (mode == MiniPlayerViewMode.ARTWORK) {
             animateWindowSize(360, 360);
@@ -1238,15 +1257,17 @@ public class MiniPlayerWindow extends Stage {
 
     private void updateSong(Song song) {
         if (song != null) {
-            byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
-            Image artworkImage = null;
-            if (artBytes != null) {
-                artworkImage = new Image(new ByteArrayInputStream(artBytes), 360, 360, false, true);
-            }
+            if (!song.getPath().startsWith("youtube:")) showingYoutubeVideo = false;
+            Image onlineArtwork = song.getArtworkUrl() == null || song.getArtworkUrl().isBlank()
+                    ? null : new Image(song.getArtworkUrl(), 360, 360, false, true, true);
+            byte[] artBytes = onlineArtwork == null ? aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath()) : null;
+            Image artworkImage = onlineArtwork != null ? onlineArtwork
+                    : (artBytes == null ? null : new Image(new ByteArrayInputStream(artBytes), 360, 360, false, true));
             artworkView.setImage(artworkImage);
 
-            if (artBytes != null) {
-                Image thumbImg = new Image(new ByteArrayInputStream(artBytes), 80, 80, true, true);
+            if (artworkImage != null) {
+                Image thumbImg = onlineArtwork != null ? new Image(song.getArtworkUrl(), 80, 80, true, true, true)
+                        : new Image(new ByteArrayInputStream(artBytes), 80, 80, true, true);
                 headerThumbnailView.setImage(thumbImg);
                 // Extract dominant color for Apple Music style dynamic background
                 dominantColor = extractDominantColor(thumbImg);
@@ -1271,11 +1292,14 @@ public class MiniPlayerWindow extends Stage {
                     aura.music.ui.MarqueeUtils.createMarqueeLabel(song.getArtist(),
                             "-fx-text-fill: #b3b3b3; -fx-font-size: 11px;", 220));
             updateQualityBadge(song);
+            updateYoutubeVideo(song);
 
             if (currentMode == MiniPlayerViewMode.LYRICS) {
                 rebuildLyrics();
             }
         } else {
+            showingYoutubeVideo = false;
+            updateYoutubeVideo(null);
             artworkView.setImage(null);
             headerThumbnailView.setImage(null);
             dominantColor = Color.web("#2a2a2a");
@@ -1293,6 +1317,21 @@ public class MiniPlayerWindow extends Stage {
             artworkArtistContainer.getChildren().clear();
             artworkQualityBadgeBox.getChildren().clear();
         }
+    }
+
+    private void updateYoutubeVideo(Song song) {
+        boolean available = song != null && song.getPath().startsWith("youtube:") && YoutubePlayerWindow.hasVideoFor(song);
+        videoBtn.setVisible(available);
+        videoBtn.setManaged(available);
+        if (!available || !showingYoutubeVideo) {
+            YoutubePlayerWindow.hideVideo();
+            if (available) videoBtn.setText("Video");
+            return;
+        }
+        YoutubePlayerWindow.showVideoIn(root, false);
+        mainLayout.toFront();
+        windowControls.toFront();
+        videoBtn.setText("Artwork");
     }
 
     /**
@@ -1380,6 +1419,10 @@ public class MiniPlayerWindow extends Stage {
     private String getQualityText(Song song) {
         if (song == null)
             return "AAC";
+        if (song.getPath().startsWith("youtube:"))
+            return "YouTube · Auto Quality";
+        if (song.getPath().startsWith("http://") || song.getPath().startsWith("https://"))
+            return "Online Preview · AAC";
         String pathLower = song.getPath().toLowerCase();
         String codec = "AAC";
         if (pathLower.endsWith(".flac")) {
@@ -1423,6 +1466,20 @@ public class MiniPlayerWindow extends Stage {
     private void showQualityPopup(Song song, Button anchorBtn) {
         if (song == null)
             return;
+
+        if (song.getPath().startsWith("youtube:") || song.getPath().startsWith("http://") || song.getPath().startsWith("https://")) {
+            boolean youtube = song.getPath().startsWith("youtube:");
+            qPopupHeader.setText(youtube ? "YouTube · Auto Quality" : "Online Preview · AAC");
+            qPopupDetails.setText(youtube ? "Official embedded YouTube playback - provider-controlled quality"
+                    : "Streaming preview — provider-controlled quality");
+            if (qualityPopup.isShowing()) qualityPopup.hide();
+            else {
+                javafx.geometry.Bounds bounds = anchorBtn.localToScreen(anchorBtn.getBoundsInLocal());
+                if (bounds != null) qualityPopup.show(anchorBtn, bounds.getMinX() - (240 - bounds.getWidth()) / 2.0,
+                        bounds.getMinY() - 110);
+            }
+            return;
+        }
 
         String pathLower = song.getPath().toLowerCase();
         String codec = "AAC";
@@ -1548,11 +1605,13 @@ public class MiniPlayerWindow extends Stage {
     }
 
     private void restoreMainPlayer() {
+        YoutubePlayerWindow.hideVideo();
         close();
         mainStage.show();
     }
 
     private void openFullScreenPlayer() {
+        YoutubePlayerWindow.hideVideo();
         close();
         mainStage.show();
         if (mainStage.getScene().getRoot() instanceof MainView) {

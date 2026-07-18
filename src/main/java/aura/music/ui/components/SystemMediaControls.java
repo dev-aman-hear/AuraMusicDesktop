@@ -131,8 +131,10 @@ public class SystemMediaControls {
                     System.err.println("Failed to extract SMTC artwork: " + e.getMessage());
                 }
 
+                String genre = song.getGenre();
+                if (genre == null) genre = "Unknown";
                 JMTCMusicProperties props = new JMTCMusicProperties(
-                        title, artist, album, artist, new String[]{song.getGenre()}, 1, 1, artFile
+                        title, artist, album, artist, new String[]{genre}, 1, 1, artFile
                 );
                 
                 jmtc.setMediaType(JMTCMediaType.Music);

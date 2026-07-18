@@ -136,7 +136,7 @@ public final class YoutubePlayerWindow {
         String escapedOrigin = URLEncoder.encode(origin, StandardCharsets.UTF_8);
         return "<!doctype html><html><head><meta charset='utf-8'><style>html,body,#player{margin:0;width:100%;height:100%;background:#000}</style>"
                 + "<script src='https://www.youtube.com/iframe_api'></script></head><body><div id='player'></div><script>"
-                + "let player,requestedPlaying=true,pendingSeek=null; function onYouTubeIframeAPIReady(){player=new YT.Player('player',{videoId:'" + videoId + "',playerVars:{autoplay:1,playsinline:1,origin:'" + origin + "'},events:{onReady:onReady,onStateChange:onState}});}"
+                + "let player,requestedPlaying=true,pendingSeek=null; function onYouTubeIframeAPIReady(){player=new YT.Player('player',{videoId:'" + videoId + "',playerVars:{autoplay:1,playsinline:1,origin:'" + escapedOrigin + "'},events:{onReady:onReady,onStateChange:onState}});}"
                 + "function onReady(){if(pendingSeek!==null)player.seekTo(pendingSeek,true); if(requestedPlaying)player.playVideo();else player.pauseVideo(); setInterval(report,500);} function onState(e){if(window.auraPlayer) auraPlayer.state(e.data===1); if(e.data===0&&window.auraPlayer) auraPlayer.ended();}"
                 + "function report(){if(player&&window.auraPlayer) auraPlayer.progress(player.getCurrentTime(),player.getDuration(),player.getPlayerState()===1);}"
                 + "function auraResume(){requestedPlaying=true;if(player)player.playVideo()} function auraPause(){requestedPlaying=false;if(player)player.pauseVideo()} function auraStop(){requestedPlaying=false;if(player)player.stopVideo()} function auraSeek(s){pendingSeek=s;if(player)player.seekTo(s,true)}"

@@ -150,7 +150,8 @@ public class FullScreenPlayer extends StackPane {
         artContainer.setEffect(new DropShadow(35, Color.rgb(0, 0, 0, 0.6)));
         artContainer.getChildren().add(artworkView);
         videoToggleBtn = new Button("Artwork");
-        videoToggleBtn.setStyle("-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 14; -fx-cursor: hand;");
+        videoToggleBtn.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 14; -fx-cursor: hand;");
         videoToggleBtn.setVisible(false);
         videoToggleBtn.setManaged(false);
         videoToggleBtn.setOnAction(e -> {
@@ -158,7 +159,8 @@ public class FullScreenPlayer extends StackPane {
             updateYoutubeVideo(viewModel.currentSongProperty().get());
         });
         expandVideoBtn = new Button("Expand video");
-        expandVideoBtn.setStyle("-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 14; -fx-cursor: hand;");
+        expandVideoBtn.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.14); -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 14; -fx-cursor: hand;");
         expandVideoBtn.setVisible(false);
         expandVideoBtn.setManaged(false);
         expandVideoBtn.setOnAction(e -> enterVideoTheater());
@@ -166,7 +168,8 @@ public class FullScreenPlayer extends StackPane {
         // Double Click to Like / Favorite
         artContainer.setOnMouseClicked(e -> {
             Song current = viewModel.currentSongProperty().get();
-            if (showingYoutubeVideo && current != null && current.getPath().startsWith("youtube:")) return;
+            if (showingYoutubeVideo && current != null && current.getPath().startsWith("youtube:"))
+                return;
             if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
                 toggleFavorite();
             }
@@ -261,7 +264,7 @@ public class FullScreenPlayer extends StackPane {
             }
         });
 
-        Button optionsBtn = new Button("ÔÇóÔÇóÔÇó");
+        Button optionsBtn = new Button("...");
         optionsBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;");
         optionsBtn.setOnAction(e -> {
@@ -383,13 +386,14 @@ public class FullScreenPlayer extends StackPane {
 
         HBox topRow = new HBox(10, expandVideoBtn, exitFsBtnTop, closeBtnTop);
         topRow.setAlignment(Pos.CENTER_RIGHT);
-        
+
         theaterBackBtn = new Button("Back to player");
-        theaterBackBtn.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16; -fx-cursor: hand;");
+        theaterBackBtn.setStyle(
+                "-fx-background-color: rgba(0,0,0,0.7); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16; -fx-cursor: hand;");
         theaterBackBtn.setOnAction(e -> exitVideoTheater());
         theaterBackBtn.setVisible(false);
         theaterBackBtn.setManaged(false);
-        
+
         topBar.getChildren().addAll(topRow, videoToggleBtn, theaterBackBtn);
 
         splitLayout.getChildren().addAll(leftCol, rightCol);
@@ -400,7 +404,8 @@ public class FullScreenPlayer extends StackPane {
         theaterPlayPauseBtn = new Button();
         theaterPlayPauseBtn.setMinSize(42, 42);
         theaterPlayPauseBtn.setPrefSize(42, 42);
-        theaterPlayPauseBtn.setStyle("-fx-background-color: rgba(255,255,255,0.18); -fx-text-fill: white; -fx-background-radius: 21; -fx-cursor: hand;");
+        theaterPlayPauseBtn.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.18); -fx-text-fill: white; -fx-background-radius: 21; -fx-cursor: hand;");
         theaterPlayPauseBtn.setOnAction(e -> viewModel.togglePlayPause());
         theaterSeek = new Slider(0, 100, 0);
         theaterSeek.setPrefWidth(620);
@@ -409,14 +414,16 @@ public class FullScreenPlayer extends StackPane {
         theaterSeek.getStyleClass().add("premium-slider");
         HBox.setHgrow(theaterSeek, Priority.ALWAYS);
         theaterSeek.valueProperty().addListener((obs, oldValue, value) -> {
-            if (theaterSeek.isValueChanging()) viewModel.seek(value.doubleValue());
+            if (theaterSeek.isValueChanging())
+                viewModel.seek(value.doubleValue());
         });
         HBox theaterControls = new HBox(14, theaterPlayPauseBtn, theaterSeek);
         theaterControls.setAlignment(Pos.CENTER);
         theaterControls.setMaxWidth(900);
         theaterControls.setMaxHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         theaterControls.setPadding(new Insets(12, 18, 12, 18));
-        theaterControls.setStyle("-fx-background-color: rgba(10,10,10,0.88); -fx-background-radius: 22; -fx-border-color: rgba(255,255,255,0.18); -fx-border-radius: 22; -fx-border-width: 1; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.75), 20, 0, 0, 6);");
+        theaterControls.setStyle(
+                "-fx-background-color: rgba(10,10,10,0.88); -fx-background-radius: 22; -fx-border-color: rgba(255,255,255,0.18); -fx-border-radius: 22; -fx-border-width: 1; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.75), 20, 0, 0, 6);");
         videoTheaterOverlay.getChildren().add(theaterControls);
         StackPane.setAlignment(theaterControls, Pos.BOTTOM_CENTER);
         StackPane.setMargin(theaterControls, new Insets(0, 40, 36, 40));
@@ -439,7 +446,8 @@ public class FullScreenPlayer extends StackPane {
             }
             double total = viewModel.totalDurationProperty().get();
             updateTimeLabels(newVal.doubleValue(), total);
-            if (!theaterSeek.isValueChanging()) theaterSeek.setValue(newVal.doubleValue());
+            if (!theaterSeek.isValueChanging())
+                theaterSeek.setValue(newVal.doubleValue());
         };
         durationListener = (obs, oldVal, newVal) -> {
             progressSlider.setMax(newVal.doubleValue());
@@ -549,8 +557,11 @@ public class FullScreenPlayer extends StackPane {
             updateYoutubeVideo(song);
 
             Image onlineArtwork = song.getArtworkUrl() == null || song.getArtworkUrl().isBlank()
-                    ? null : new Image(song.getArtworkUrl(), true);
-            byte[] artBytes = onlineArtwork == null ? aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath()) : null;
+                    ? null
+                    : new Image(song.getArtworkUrl(), true);
+            byte[] artBytes = onlineArtwork == null
+                    ? aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath())
+                    : null;
             if (onlineArtwork != null || artBytes != null) {
                 Image image = onlineArtwork != null ? onlineArtwork : new Image(new ByteArrayInputStream(artBytes));
                 artworkView.setImage(image);
@@ -578,7 +589,8 @@ public class FullScreenPlayer extends StackPane {
     }
 
     private void updateYoutubeVideo(Song song) {
-        boolean youtube = song != null && song.getPath().startsWith("youtube:") && YoutubePlayerWindow.hasVideoFor(song);
+        boolean youtube = song != null && song.getPath().startsWith("youtube:")
+                && YoutubePlayerWindow.hasVideoFor(song);
         videoToggleBtn.setVisible(youtube);
         videoToggleBtn.setManaged(youtube);
         expandVideoBtn.setVisible(youtube);
@@ -599,7 +611,8 @@ public class FullScreenPlayer extends StackPane {
 
     private void enterVideoTheater() {
         Song song = viewModel.currentSongProperty().get();
-        if (song == null || !YoutubePlayerWindow.hasVideoFor(song)) return;
+        if (song == null || !YoutubePlayerWindow.hasVideoFor(song))
+            return;
         videoTheaterMode = true;
         videoTheaterOverlay.setVisible(true);
         videoTheaterOverlay.setManaged(true);
@@ -615,7 +628,8 @@ public class FullScreenPlayer extends StackPane {
     }
 
     private void exitVideoTheater() {
-        if (!videoTheaterMode) return;
+        if (!videoTheaterMode)
+            return;
         videoTheaterMode = false;
         videoTheaterOverlay.setVisible(false);
         videoTheaterOverlay.setManaged(false);

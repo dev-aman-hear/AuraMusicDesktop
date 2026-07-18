@@ -4,6 +4,14 @@ A premium, borderless, and highly customizable modern desktop music player built
 
 ---
 
+## 🆕 What's New in v1.4.1
+- **UI Enhancements**: 
+  - Added a stunning new floating glass aesthetic for the main sidebar navigation.
+- **Bug Fixes**: 
+  - Fixed Windows System Media Transport Controls (SMTC) integration not reliably binding or updating for online YouTube tracks.
+
+---
+
 ## 🆕 What's New in v1.4.0
 - **Performance Optimizations**: 
   - Cleaned up unused and unwanted code for a smoother, faster experience.

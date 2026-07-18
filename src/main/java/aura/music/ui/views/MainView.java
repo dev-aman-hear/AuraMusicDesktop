@@ -153,7 +153,7 @@ public class MainView extends StackPane {
         sidebar = createSidebar();
 
         sidebarSpacer = new Region();
-        double initialSpacerWidth = sidebarExpanded.get() ? 240 : 72;
+        double initialSpacerWidth = sidebarExpanded.get() ? 255 : 87;
         sidebarSpacer.setPrefWidth(initialSpacerWidth);
         sidebarSpacer.setMinWidth(initialSpacerWidth);
         sidebarSpacer.setMaxWidth(initialSpacerWidth);
@@ -229,14 +229,15 @@ public class MainView extends StackPane {
         mainLayout = new StackPane(rootLayout, sidebar, rightPanel);
         StackPane.setAlignment(rootLayout, Pos.TOP_LEFT);
         StackPane.setAlignment(sidebar, Pos.TOP_LEFT);
+        StackPane.setMargin(sidebar, new Insets(15, 0, 15, 15));
         StackPane.setAlignment(rightPanel, Pos.TOP_RIGHT);
         StackPane.setMargin(rightPanel, new Insets(110, 20, 20, 20)); // Float below top player bar
 
         // Bind heights to prevent layout shifts from shadows
         rootLayout.prefHeightProperty().bind(heightProperty());
         rootLayout.maxHeightProperty().bind(heightProperty());
-        sidebar.prefHeightProperty().bind(heightProperty());
-        sidebar.maxHeightProperty().bind(heightProperty());
+        sidebar.prefHeightProperty().bind(heightProperty().subtract(30));
+        sidebar.maxHeightProperty().bind(heightProperty().subtract(30));
 
         getChildren().add(mainLayout);
 
@@ -487,15 +488,14 @@ public class MainView extends StackPane {
         boolean shouldDockExpanded = isFullScreen || windowWidth > 1350;
 
         if (shouldDockExpanded) {
-            sidebarSpacer.setPrefWidth(240);
-            sidebarSpacer.setMinWidth(240);
-            sidebarSpacer.setMaxWidth(240);
+            sidebarSpacer.setPrefWidth(255);
+            sidebarSpacer.setMinWidth(255);
+            sidebarSpacer.setMaxWidth(255);
 
             sidebarExpanded.set(true);
             sidebar.setPrefWidth(240);
             sidebar.setMinWidth(240);
             sidebar.setMaxWidth(240);
-            sidebar.setEffect(null);
 
             if (toggleSidebarBtn != null) {
                 toggleSidebarBtn.setVisible(false);
@@ -503,20 +503,14 @@ public class MainView extends StackPane {
             }
         } else {
             boolean expanded = sidebarExpanded.get();
-            sidebarSpacer.setPrefWidth(72);
-            sidebarSpacer.setMinWidth(72);
-            sidebarSpacer.setMaxWidth(72);
+            sidebarSpacer.setPrefWidth(87);
+            sidebarSpacer.setMinWidth(87);
+            sidebarSpacer.setMaxWidth(87);
 
             double targetWidth = expanded ? 240 : 72;
             sidebar.setPrefWidth(targetWidth);
             sidebar.setMinWidth(targetWidth);
             sidebar.setMaxWidth(targetWidth);
-
-            if (expanded) {
-                sidebar.setEffect(new DropShadow(25, Color.rgb(0, 0, 0, 0.65)));
-            } else {
-                sidebar.setEffect(null);
-            }
 
             if (toggleSidebarBtn != null) {
                 toggleSidebarBtn.setVisible(true);
@@ -865,7 +859,7 @@ public class MainView extends StackPane {
             sidebar.setPadding(new Insets(20, 8, 20, 8));
         }
         sidebar.setStyle(
-                "-fx-background-color: rgba(25, 25, 25, 0.85); -fx-border-color: rgba(255, 255, 255, 0.08); -fx-border-width: 0 1 0 0;");
+                "-fx-background-color: rgba(30, 30, 30, 0.45); -fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: rgba(255, 255, 255, 0.15); -fx-border-width: 1;");
 
         // Header with Logo, Navigation and Toggle Button
         HBox logoContainer = new HBox(10);
@@ -1132,11 +1126,7 @@ public class MainView extends StackPane {
         sidebarExpanded.set(!expanded);
         double targetWidth = !expanded ? 240 : 72;
 
-        if (!expanded) {
-            sidebar.setEffect(new DropShadow(25, Color.rgb(0, 0, 0, 0.65)));
-        } else {
-            sidebar.setEffect(null);
-        }
+        // Effect is now handled permanently via CSS in createSidebar
 
         javafx.animation.Timeline timeline = new javafx.animation.Timeline(
                 new javafx.animation.KeyFrame(Duration.millis(200),
@@ -2295,7 +2285,7 @@ public class MainView extends StackPane {
         boolean light = themeEngine.lightModeProperty().get();
 
         String playerBarBg = light ? "rgba(255, 255, 255, 0.85)" : "rgba(24, 24, 24, 0.85)";
-        String sidebarBg = String.format("rgba(%d, %d, %d, 0.85)", (int) (sbCol.getRed() * 255),
+        String sidebarBg = String.format("rgba(%d, %d, %d, 0.45)", (int) (sbCol.getRed() * 255),
                 (int) (sbCol.getGreen() * 255), (int) (sbCol.getBlue() * 255));
         String borderCol = light ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.06)";
         String cardBg = light ? "rgba(255, 255, 255, 0.6)" : "rgba(35, 35, 35, 0.4)";
@@ -2315,8 +2305,10 @@ public class MainView extends StackPane {
         if (sidebar != null) {
             sidebar.setStyle(String.format(
                     "-fx-background-color: %s; " +
+                            "-fx-background-radius: 20; " +
+                            "-fx-border-radius: 20; " +
                             "-fx-border-color: %s; " +
-                            "-fx-border-width: 0 1 0 0;",
+                            "-fx-border-width: 1;",
                     sidebarBg, borderCol));
         }
 

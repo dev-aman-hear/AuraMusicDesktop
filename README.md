@@ -4,6 +4,13 @@ A premium, borderless, and highly customizable modern desktop music player built
 
 ---
 
+## 🆕 What's New in v1.4.0
+- **Performance Optimizations**: 
+  - Cleaned up unused and unwanted code for a smoother, faster experience.
+  - Overall application responsiveness and speed improved.
+
+---
+
 ## 🆕 What's New in v1.3.1
 - **UI Enhancements**: 
   - Revamped "Favorite Songs" into a beautiful horizontal card/tab layout.

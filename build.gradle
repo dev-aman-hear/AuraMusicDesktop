@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'aura.music'
-version '1.4.1'
+version '1.5.0'
 
 repositories {
     mavenCentral()
@@ -20,6 +20,8 @@ dependencies {
     implementation 'io.github.selemba1000:JavaMediaTransportControls:0.0.3'
     implementation 'net.java.dev.jna:jna:5.14.0'
     implementation 'net.java.dev.jna:jna-platform:5.14.0'
+    implementation 'org.xerial:sqlite-jdbc:3.45.1.0'
+    implementation 'uk.co.caprica:vlcj:4.8.2'
     
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
@@ -42,8 +44,25 @@ test {
     useJUnitPlatform()
 }
 
-tasks.register('packageAppImage', Exec) {
+tasks.register('copyVlcBinaries', Copy) {
     dependsOn installDist
+    from 'vlc'
+    into "${buildDir}/install/AuraMusicDesktop/lib/vlc"
+    
+    // Strip unnecessary VLC components to reduce installer size
+    exclude 'plugins/video*/**'
+    exclude 'plugins/gui/**'
+    exclude 'plugins/visualization/**'
+    exclude 'plugins/stream_out/**'
+    exclude 'plugins/lua/**'
+    exclude 'lua/**'
+    exclude 'skins/**'
+    exclude 'locale/**'
+    exclude 'doc/**'
+}
+
+tasks.register('packageAppImage', Exec) {
+    dependsOn copyVlcBinaries
     group = 'distribution'
     description = 'Packages the application as a Windows App Image.'
     commandLine 'jpackage',
@@ -55,11 +74,12 @@ tasks.register('packageAppImage', Exec) {
         '--type', 'app-image',
         '--dest', "${buildDir}/app-image",
         '--vendor', 'AuraMusic',
-        '--app-version', '1.4.1'
+        '--app-version', "${version}",
+        '--java-options', '-XX:+UseZGC -XX:+CompactStrings'
 }
 
 tasks.register('packageExe', Exec) {
-    dependsOn installDist
+    dependsOn copyVlcBinaries
     group = 'distribution'
     description = 'Packages the application as a Windows EXE installer using jpackage.'
     commandLine 'jpackage',
@@ -73,12 +93,15 @@ tasks.register('packageExe', Exec) {
         '--win-dir-chooser',
         '--win-menu',
         '--win-shortcut',
+        '--win-per-user-install',
+        '--win-upgrade-uuid', '8f7a9d2c-4e1b-4f3a-9e5c-6b7a8d9e0f1a',
         '--vendor', 'AuraMusic',
-        '--app-version', '1.4.1'
+        '--app-version', "${version}",
+        '--java-options', '-XX:+UseZGC -XX:+CompactStrings'
 }
 
 tasks.register('packageMsi', Exec) {
-    dependsOn installDist
+    dependsOn copyVlcBinaries
     group = 'distribution'
     description = 'Packages the application as a Windows MSI installer using jpackage.'
     commandLine 'jpackage',
@@ -92,7 +115,10 @@ tasks.register('packageMsi', Exec) {
         '--win-dir-chooser',
         '--win-menu',
         '--win-shortcut',
+        '--win-per-user-install',
+        '--win-upgrade-uuid', '8f7a9d2c-4e1b-4f3a-9e5c-6b7a8d9e0f1a',
         '--vendor', 'AuraMusic',
-        '--app-version', '1.4.1'
+        '--app-version', "${version}",
+        '--java-options', '-XX:+UseZGC -XX:+CompactStrings'
 }
 

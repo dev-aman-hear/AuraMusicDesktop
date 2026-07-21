@@ -1,127 +1,107 @@
-# 🎵 AuraMusicDesktop
+# 🎵 Aura Music Desktop
 
-A premium, borderless, and highly customizable modern desktop music player built with **JavaFX 21** and **Gradle**. AuraMusicFX brings a sleek, glassmorphic design and rich features to your desktop audio experience, featuring smooth micro-animations, theme support, metadata extraction, and synchronized lyrics support.
+<div align="center">
 
----
+![Aura Music Banner](https://img.shields.io/badge/Aura--Music-Desktop-7C3AED?style=for-the-badge&logo=java&logoColor=white)
+![Java Version](https://img.shields.io/badge/Java-21%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+![JavaFX](https://img.shields.io/badge/JavaFX-21-276DC3?style=for-the-badge&logo=java&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-8.x-02303A?style=for-the-badge&logo=gradle&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-000000?style=for-the-badge)
 
-## 🆕 What's New in v1.4.1
-- **UI Enhancements**: 
-  - Added a stunning new floating glass aesthetic for the main sidebar navigation.
-- **Bug Fixes**: 
-  - Fixed Windows System Media Transport Controls (SMTC) integration not reliably binding or updating for online YouTube tracks.
+*A premium, borderless, glassmorphic modern desktop audio experience built with JavaFX 21 & LibVLC/VLCJ.*
 
----
-
-## 🆕 What's New in v1.4.0
-- **Performance Optimizations**: 
-  - Cleaned up unused and unwanted code for a smoother, faster experience.
-  - Overall application responsiveness and speed improved.
+</div>
 
 ---
 
-## 🆕 What's New in v1.3.1
-- **UI Enhancements**: 
-  - Revamped "Favorite Songs" into a beautiful horizontal card/tab layout.
-  - Interactive smart cards: Click directly on "Daily Special" or "Up Next" artwork to instantly play them.
-- **State Persistence**: The application now seamlessly remembers your "Recently Played" history and volume preferences across restarts.
+## 🌟 Overview
+
+**Aura Music Desktop** is a modern, high-performance desktop music player featuring a sleek glassmorphic dark interface, fluid micro-animations, rich audio playback support, synchronized LRC lyrics, custom theme accents, YouTube/online integration, and native Windows System Media Transport Controls (SMTC).
 
 ---
 
-## 🆕 What's New in v1.3.0
-- **UI Enhancements**: Complete redesign of the Settings tab for a more premium look. The lyric text size slider was replaced with a custom, smooth segmented control.
-- **Performance Optimizations**: Added UI caching and threading optimizations to make the application feel smoother and faster.
+## 🚀 Feature Status & Roadmap
+
+### ✅ Current Features (Available Now)
+- 🎧 **High-Fidelity Audio Engine**: Powered by LibVLC/VLCJ & JavaFX, supporting MP3, FLAC, WAV, AAC, OGG, and streaming audio.
+- 🎨 **Modern Glassmorphic UI**: Transparent borderless windows, customizable dark themes, interactive glass components, and fluid UI micro-animations.
+- 🎤 **Synchronized LRC Lyrics**: Real-time line-by-line synced lyrics display with smooth scrolling and dynamic preview.
+- 📺 **Multiple View Modes**:
+  - **Home Dashboard**: Quick access to recent plays, favorites, daily special recommendations, and top tracks.
+  - **Full Screen Immersive Player**: Distraction-free listening mode with interactive controls and background visuals.
+  - **Mini Player**: Lightweight floating desktop widget for quick playback controls while multi-tasking.
+  - **Album & Playlist Manager**: Detailed album views, metadata tagging, and custom playlist creation.
+- 🌐 **Online Streaming & YouTube Integration**: Search, stream, and play YouTube audio tracks seamlessly.
+- 🎛️ **Windows SMTC Integration**: Control playback via native Windows media keys and system overlays.
+- 💾 **Smart State & Preference Persistence**: Saves last played history, volume preferences, custom library directories, and theme settings across restarts.
 
 ---
 
-## 🆕 What's New in v1.2.2
-- **UI Enhancements**: Added an "Exit to Mini Player" option to the 3-dot context menu in Full Screen Player.
-- **Bug Fixes**: Resolved compilation errors related to property bindings in MiniPlayerWindow and primitive type checks in FullScreenPlayer.
+### 🏗️ In Development (Work in Progress)
+- 📊 **Dynamic Audio Visualizer & Spectrum**: Real-time reactive audio frequency spectrum analyzer with custom visual modes.
+- 🎚️ **Equalizer & DSP Effects**: Built-in multi-band equalizer with presets (Bass Boost, Pop, Rock, Vocal) and custom gain controls.
+- 📝 **Interactive Lyrics Editor**: Built-in LRC editor to adjust offset timestamps and create custom synced lyrics directly in-app.
+- 🔄 **Cloud & Local Auto-Sync**: Background directory watcher to automatically reflect file changes in the local music library instantly.
 
 ---
 
-## 🆕 What's New in v1.2.0
-- **UI Enhancements**: Added a modern glassy look to context menus, sub-menus, and dropdown popups.
-- **UX Improvements**: Auto-collapsing sidebar overlay when navigating in narrowed window state.
+### 🔮 Future Roadmap (Planned Features)
+- 🌐 **Cross-Platform Global Media Keys**: Native system media control support for macOS (MPRemoteCommandCenter) and Linux (MPRIS2).
+- ☁️ **Spotify & Last.fm Scrobbling**: Real-time music scrobbling, scrobble caching, and top tracks stats integration.
+- 📱 **Remote Control Companion App**: Control desktop playback, queue, and volume from your mobile phone on the local Wi-Fi network.
+- 🎨 **Custom Theme Builder**: Full theme engine support allowing users to design and export custom colors, background blurs, and CSS accents.
+- 🔊 **Gapless Playback & Crossfade**: Smooth track transition options with adjustable crossfade durations.
 
 ---
 
-## ✨ Features
+## 🛠️ Tech Stack & Key Libraries
 
-- **📺 Immersive Visuals & Borderless Window**: A customized, transparent, and modern borderless UI with a dark aesthetic, custom title bars, and fluid CSS-based transition effects.
-- **🎧 Audio playback Engine**: High-fidelity audio playback supporting MP3, FLAC (via `jflac-codec`), WAV, and other standard formats.
-- **📂 Smart Library Management**: Scans directories, extracts metadata (artist, album, year, and embedded cover art) via `jaudiotagger`, and indexes your music library efficiently.
-- **🎤 Synchronized Lyrics**: Full support for `.lrc` files, parsing and scrolling synchronized lyrics line-by-line.
-- **🔄 Multiple View Modes**:
-  - **Home Dashboard**: Quick access to your tracks, recent albums, and favorites.
-  - **Album Detail View**: Dedicated views for albums with high-res cover art.
-  - **Full Screen Immersive Player**: Focus mode for distraction-free listening.
-  - **Mini Player Window**: A compact, floating widget for easy control while multi-tasking.
-  - **Playlist Manager**: Create, customize, and edit local playlists.
-- **⚙️ Preferences**: Configurable library paths, audio options, and visual settings.
+| Component | Technology / Library |
+| :--- | :--- |
+| **Language** | Java 21 (LTS) |
+| **UI Framework** | JavaFX 21 |
+| **Audio Engine** | VLCJ / LibVLC (`uk.co.caprica:vlcj`) |
+| **Metadata Tagging** | Jaudiotagger (`net.jthink:jaudiotagger:3.0.1`) |
+| **FLAC Decoder** | JFLAC (`org.jflac:jflac-codec:1.5.2`) |
+| **Persistence / JSON** | Gson (`com.google.code.gson:gson:2.10.1`) |
+| **Build Tool** | Gradle |
 
 ---
 
-## 🛠️ Technology Stack
-
-- **Language**: Java 21+
-- **UI Framework**: JavaFX 21
-- **Build Automation**: Gradle
-- **Key Dependencies**:
-  - `net.jthink:jaudiotagger:3.0.1` - Professional audio metadata reader/writer.
-  - `com.google.code.gson:gson:2.10.1` - Fast JSON serialization for playlists and preferences.
-  - `org.jflac:jflac-codec:1.5.2` - FLAC audio format support.
-
----
-
-## 🚀 Getting Started
+## 💻 Getting Started
 
 ### Prerequisites
+- **JDK 21** or higher installed.
+- **Git** installed.
+- *(Recommended)* **VLC Media Player** installed on system for LibVLC integration.
 
-Make sure you have the following installed:
-- **Java Development Kit (JDK) 21** or higher.
-- **Git** (for cloning the repository).
-
-### Cloning the Repository
+### Quick Start Commands
 
 ```bash
+# Clone the repository
 git clone https://github.com/YOUR_USERNAME/AuraMusicDesktop.git
 cd AuraMusicDesktop
-```
 
-### Running the Application
-
-You can easily run the application using the Gradle wrapper provided in the project:
-
-```bash
-# On Windows
+# Run application via Gradle Wrapper
+# Windows:
 gradlew.bat run
 
-# On macOS / Linux
+# macOS / Linux:
 ./gradlew run
 ```
 
-### Building the Distribution
+### Packaging & Installers (Windows)
 
-To package the application:
-
-```bash
-# Compile and build
-gradlew assemble
-```
-
-### Packaging and Installers (Windows)
-
-AuraMusicFX is configured with custom `jpackage` tasks to build standalone Windows installers (which bundle their own lightweight Java Runtime Environment, meaning end-users do not need Java installed on their machine):
+AuraMusic Desktop supports building standalone installers bundled with an embedded Java runtime:
 
 ```bash
-# Generate .exe installer
+# Build executable (.exe) installer
 gradlew packageExe
 
-# Generate .msi installer
+# Build MSI installer
 gradlew packageMsi
 ```
-
-The compiled installers will be generated under the `build/installer/` directory.
+The output installers will be generated under `build/installer/`.
 
 ---
 
@@ -129,38 +109,34 @@ The compiled installers will be generated under the `build/installer/` directory
 
 ```
 AuraMusicDesktop/
-├── .gitignore
-├── build.gradle          # Gradle project configuration and dependencies
-├── settings.gradle       # Gradle settings
-├── gradlew / gradlew.bat # Gradle wrappers
-└── src/
-    └── main/
-        ├── java/
-        │   └── aura/
-        │       └── music/
-        │           ├── Main.java         # Application Entrypoint & Stage setup
-        │           ├── Launcher.java     # Main Launcher class
-        │           ├── audio/            # Audio engine and playback control
-        │           ├── library/          # Media indexing and tag extraction
-        │           ├── lyrics/           # LRC parser and synchronized lyrics structures
-        │           ├── model/            # Tracks, Albums, and Playlists domain models
-        │           ├── theme/            # Accent color configurations
-        │           ├── ui/               # Views, Custom Components, and Animations
-        │           └── viewmodel/        # MVVM view models to decouple UI logic
-        └── resources/
-            └── aura/
-                └── music/
-                    └── styles.css        # Global CSS stylesheet for AuraMusicFX
+├── build.gradle          # Dependencies and Gradle build configuration
+├── settings.gradle       # Project settings
+├── gradlew / gradlew.bat # Gradle wrapper scripts
+└── src/main/
+    ├── java/aura/music/
+    │   ├── Launcher.java # Main application launcher entrypoint
+    │   ├── Main.java     # Primary Stage & UI initialization
+    │   ├── audio/        # Playback engine & LibVLC handler
+    │   ├── library/      # Indexer & metadata extractor
+    │   ├── lyrics/       # LRC lyrics parser & synchronizer
+    │   ├── model/        # Data domain models (Track, Album, Playlist)
+    │   ├── online/       # YouTube and online stream handlers
+    │   ├── theme/        # Theme engine & accent managers
+    │   ├── ui/           # Custom FX views, components & overlays
+    │   ├── utils/        # System utilities & SMTC integration
+    │   └── viewmodel/    # MVVM architecture view models
+    └── resources/aura/music/
+        └── styles.css    # Modern CSS stylesheet & glassmorphic theme rules
 ```
-
----
-
-## 🎨 Customizing the Interface
-
-All styles are governed by [styles.css](file:///src/main/resources/aura/music/styles.css). You can adjust theme colors, font families, and container borders to customize your local player look.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you find bugs or want to add new features, please open an issue or submit a pull request.
+Contributions, issues, and feature requests are welcome! Feel free to check out existing issues or open a pull request.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ using JavaFX 21</sub>
+</div>

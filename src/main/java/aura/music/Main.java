@@ -10,12 +10,16 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 
+    private static MainViewModel instanceViewModel;
+    private static Stage primaryStageInstance;
     private MainViewModel viewModel;
 
     @Override
     public void start(Stage primaryStage) {
         // Initialize MVVM components
         viewModel = new MainViewModel();
+        instanceViewModel = viewModel;
+        primaryStageInstance = primaryStage;
         
         // Make stage borderless & transparent
         primaryStage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
@@ -68,6 +72,12 @@ public class Main extends Application {
         });
 
         primaryStage.show();
+
+        // Process initial command line arguments
+        java.util.List<String> parameters = getParameters().getRaw();
+        if (parameters != null && !parameters.isEmpty()) {
+            handleExternalArgument(String.join(" ", parameters));
+        }
     }
 
     private String toHexString(Color color) {
@@ -75,6 +85,34 @@ public class Main extends Application {
             (int) (color.getRed() * 255),
             (int) (color.getGreen() * 255),
             (int) (color.getBlue() * 255));
+    }
+
+    public static void handleExternalArgument(String arg) {
+        if (arg == null || arg.trim().isEmpty()) return;
+        
+        // Clean up argument if it has quotes (common from Windows File Explorer)
+        String filePath = arg;
+        if (filePath.startsWith("\"") && filePath.endsWith("\"")) {
+            filePath = filePath.substring(1, filePath.length() - 1);
+        }
+
+        final String finalPath = filePath;
+        javafx.application.Platform.runLater(() -> {
+            if (primaryStageInstance != null) {
+                primaryStageInstance.setIconified(false);
+                primaryStageInstance.toFront();
+                primaryStageInstance.requestFocus();
+            }
+            if (instanceViewModel != null) {
+                java.io.File file = new java.io.File(finalPath);
+                if (file.exists() && file.isFile()) {
+                    aura.music.model.Song song = new aura.music.model.Song(file.getAbsolutePath());
+                    // Set basic tags based on filename temporarily
+                    song.setTitle(file.getName().replaceFirst("[.][^.]+$", ""));
+                    instanceViewModel.play(song);
+                }
+            }
+        });
     }
 
     public static void main(String[] args) {

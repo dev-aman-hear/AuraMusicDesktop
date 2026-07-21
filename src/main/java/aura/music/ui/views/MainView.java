@@ -70,16 +70,25 @@ public class MainView extends StackPane {
     private ScrollPane genresScrollPane;
     private GridPane genresGridPane;
     private HomeView homeView;
-    private NewView newView;
     private OnlineMusicView onlineMusicView;
     private AlbumDetailView albumDetailView;
     private final java.util.List<Button> sidebarButtons = new java.util.ArrayList<>();
     private Region sidebarSpacer;
 
-    // Caching flags for grids
-    private boolean isAlbumsGridPopulated = false;
-    private boolean isArtistsGridPopulated = false;
-    private boolean isGenresGridPopulated = false;
+    // Keep the UI bounded: render a small ready-ahead window instead of creating
+    // a card (and starting artwork extraction) for every library item at once.
+    private static final int INITIAL_BROWSE_ITEMS = 60;
+    private static final int BROWSE_PREFETCH_ITEMS = 40;
+    private static final double BROWSE_PREFETCH_THRESHOLD = 0.70;
+    private java.util.List<Song> albumCatalog = java.util.List.of();
+    private java.util.List<Song> artistCatalog = java.util.List.of();
+    private java.util.List<Song> genreCatalog = java.util.List.of();
+    private int loadedAlbumCards;
+    private int loadedArtistCards;
+    private int loadedGenreCards;
+    private boolean isLoadingAlbumCards;
+    private boolean isLoadingArtistCards;
+    private boolean isLoadingGenreCards;
     private javafx.scene.Node currentActiveView;
 
     private SettingsView settingsView;
@@ -128,6 +137,9 @@ public class MainView extends StackPane {
             false);
 
     private Pane bgDarkening;
+    private StackPane initialImportOverlay;
+    private Label initialImportStatus;
+    private boolean showingInitialImport;
 
     public MainView(MainViewModel viewModel) {
         this.viewModel = viewModel;
@@ -167,10 +179,7 @@ public class MainView extends StackPane {
         centerSection = createCenterSection();
 
         // Create Home View
-        homeView = new HomeView(viewModel, this::showSongListSection, this::showAlbumDetail);
-
-        // Create New View
-        newView = new NewView(viewModel, this::selectGenre, this::selectArtist);
+        homeView = new HomeView(viewModel, this::showFavorites, this::showAlbumDetail, this::selectGenre, this::selectArtist);
 
         // Online discovery is intentionally separate from the local-library Browse page.
         onlineMusicView = new OnlineMusicView(viewModel);
@@ -207,7 +216,7 @@ public class MainView extends StackPane {
             }
         });
 
-        centerContentContainer.getChildren().addAll(centerSection, homeView, newView, onlineMusicView, albumDetailView, settingsView,
+        centerContentContainer.getChildren().addAll(centerSection, homeView, onlineMusicView, albumDetailView, settingsView,
                 playlistView);
 
         // --- TOP PLAYBACK BAR (Next to Sidebar) ---
@@ -240,6 +249,21 @@ public class MainView extends StackPane {
         sidebar.maxHeightProperty().bind(heightProperty().subtract(30));
 
         getChildren().add(mainLayout);
+        createInitialImportOverlay();
+
+        LibraryManager.getInstance().addListener(new LibraryManager.LibraryListener() {
+            @Override public void onSongAdded(Song song) { }
+            @Override public void onSongRemoved(Song song) { }
+            @Override public void onSongUpdated(Song song) { }
+
+            @Override public void onScanProgress(int songsFound) {
+                Platform.runLater(() -> updateInitialImportStatus(songsFound));
+            }
+
+            @Override public void onScanFinished(File folder, int songsFound) {
+                Platform.runLater(() -> finishInitialImport(songsFound));
+            }
+        });
 
         // Setup Window Dragging on the top player bar
         setupWindowDragging(playerBar);
@@ -260,7 +284,6 @@ public class MainView extends StackPane {
 
         // Initially hide all except homeView
         centerSection.setVisible(false);
-        newView.setVisible(false);
         onlineMusicView.setVisible(false);
         albumDetailView.setVisible(false);
         settingsView.setVisible(false);
@@ -275,11 +298,9 @@ public class MainView extends StackPane {
             }
         });
 
-        // Invalidate cache if library changes
+        // Rebuild the small browse indexes only when the library changes.
         viewModel.getLibrarySongs().addListener((javafx.collections.ListChangeListener<Song>) c -> {
-            isAlbumsGridPopulated = false;
-            isArtistsGridPopulated = false;
-            isGenresGridPopulated = false;
+            invalidateBrowseCatalogs();
         });
 
         // Initialize bindings
@@ -461,9 +482,13 @@ public class MainView extends StackPane {
     private void showSongListSection(String title, boolean autoCollapseSidebar) {
         songListView.setVisible(true);
         albumsScrollPane.setVisible(false);
+        albumsListView.setVisible(false);
         artistsScrollPane.setVisible(false);
+        artistsListView.setVisible(false);
         if (genresScrollPane != null)
             genresScrollPane.setVisible(false);
+        if (genresListView != null)
+            genresListView.setVisible(false);
         sectionTitle.setText(title);
         switchViewWithFade(centerSection, autoCollapseSidebar);
 
@@ -519,16 +544,26 @@ public class MainView extends StackPane {
         }
     }
 
-    private void showNewView() {
-        updateActiveSidebarButton("Browse");
-        switchViewWithFade(newView);
-    }
-
     private void showOnlineMusicView() {
         if (!viewModel.onlineMusicEnabledProperty().get()) return;
         updateActiveSidebarButton("Online");
         onlineMusicView.refreshTrending();
         switchViewWithFade(onlineMusicView);
+    }
+
+    public void showFavorites() {
+        showFavorites(null);
+    }
+
+    public void showFavorites(String ignored) {
+        updateActiveSidebarButton("Favorites");
+        switchViewWithFade(albumDetailView);
+        javafx.collections.ObservableList<Song> favs = FXCollections.observableArrayList();
+        for (Song s : viewModel.getLibrarySongs()) {
+            if (s.isFavorite())
+                favs.add(s);
+        }
+        albumDetailView.setPlaylist("Favorites", favs);
     }
 
     private void showAlbumsGrid() {
@@ -637,61 +672,56 @@ public class MainView extends StackPane {
     }
 
     private void populateAlbumsGrid() {
-        if (isAlbumsGridPopulated)
-            return;
-        albumsGridPane.getChildren().clear();
-        java.util.Set<String> seenAlbums = new java.util.HashSet<>();
-        java.util.List<Song> albumSongs = new java.util.ArrayList<>();
-        for (Song song : viewModel.getLibrarySongs()) {
-            String album = song.getAlbum();
-            if (album != null && !album.isEmpty() && seenAlbums.add(album)) {
-                albumSongs.add(song);
-            }
+        if (albumCatalog.isEmpty()) {
+            albumCatalog = buildBrowseCatalog("albums", Song::getAlbum);
         }
-        isAlbumsGridPopulated = true;
-        populateGridChunked(albumsGridPane, albumSongs, 0, 20, albumsScrollPane, "album");
+        if (loadedAlbumCards == 0) {
+            appendBrowseCards(albumsGridPane, albumCatalog, 0, INITIAL_BROWSE_ITEMS, albumsScrollPane, "album");
+            loadedAlbumCards = Math.min(INITIAL_BROWSE_ITEMS, albumCatalog.size());
+        }
     }
 
     private void populateArtistsGrid() {
-        if (isArtistsGridPopulated)
-            return;
-        artistsGridPane.getChildren().clear();
-        java.util.Set<String> seenArtists = new java.util.HashSet<>();
-        java.util.List<Song> artistSongs = new java.util.ArrayList<>();
-        for (Song song : viewModel.getLibrarySongs()) {
-            String artist = song.getArtist();
-            if (artist != null && !artist.isEmpty() && seenArtists.add(artist)) {
-                artistSongs.add(song);
-            }
+        if (artistCatalog.isEmpty()) {
+            artistCatalog = buildBrowseCatalog("artists", Song::getArtist);
         }
-        isArtistsGridPopulated = true;
-        populateGridChunked(artistsGridPane, artistSongs, 0, 20, artistsScrollPane, "artist");
+        if (loadedArtistCards == 0) {
+            appendBrowseCards(artistsGridPane, artistCatalog, 0, INITIAL_BROWSE_ITEMS, artistsScrollPane, "artist");
+            loadedArtistCards = Math.min(INITIAL_BROWSE_ITEMS, artistCatalog.size());
+        }
     }
 
     private void populateGenresGrid() {
-        if (isGenresGridPopulated)
-            return;
-        genresGridPane.getChildren().clear();
-        java.util.Set<String> seenGenres = new java.util.HashSet<>();
-        java.util.List<Song> genreSongs = new java.util.ArrayList<>();
-        for (Song song : viewModel.getLibrarySongs()) {
-            String genre = song.getGenre();
-            if (genre != null && !genre.isEmpty() && seenGenres.add(genre)) {
-                genreSongs.add(song);
-            }
+        if (genreCatalog.isEmpty()) {
+            genreCatalog = buildBrowseCatalog("genres", Song::getGenre);
         }
-        isGenresGridPopulated = true;
-        populateGridChunked(genresGridPane, genreSongs, 0, 20, genresScrollPane, "genre");
+        if (loadedGenreCards == 0) {
+            appendBrowseCards(genresGridPane, genreCatalog, 0, INITIAL_BROWSE_ITEMS, genresScrollPane, "genre");
+            loadedGenreCards = Math.min(INITIAL_BROWSE_ITEMS, genreCatalog.size());
+        }
     }
 
-    private void populateGridChunked(GridPane gridPane, java.util.List<Song> songs, int startIndex, int chunkSize,
-            ScrollPane scrollPane, String type) {
-        if (startIndex >= songs.size()) {
-            layoutGridResponsively(gridPane, scrollPane.getWidth());
-            return;
+    private java.util.List<Song> buildBrowseCatalog(String category,
+            java.util.function.Function<Song, String> keyExtractor) {
+        java.util.List<Song> cachedCatalog = LibraryManager.getInstance().getBrowseCatalog(category);
+        if (!cachedCatalog.isEmpty() || viewModel.getLibrarySongs().isEmpty()) {
+            return cachedCatalog;
         }
+        // The UI may receive a library update a little before the manager's cache.
+        // Keep the fallback local and deterministic in that short transition.
+        java.util.Map<String, Song> representatives = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Song song : viewModel.getLibrarySongs()) {
+            String key = keyExtractor.apply(song);
+            if (key != null && !key.isBlank()) {
+                representatives.putIfAbsent(key, song);
+            }
+        }
+        return new java.util.ArrayList<>(representatives.values());
+    }
 
-        int endIndex = Math.min(startIndex + chunkSize, songs.size());
+    private void appendBrowseCards(GridPane gridPane, java.util.List<Song> songs, int startIndex, int count,
+            ScrollPane scrollPane, String type) {
+        int endIndex = Math.min(startIndex + count, songs.size());
         for (int i = startIndex; i < endIndex; i++) {
             Song song = songs.get(i);
             if (type.equals("album")) {
@@ -716,9 +746,60 @@ public class MainView extends StackPane {
         }
 
         layoutGridResponsively(gridPane, scrollPane.getWidth());
+    }
 
+    private void invalidateBrowseCatalogs() {
+        albumCatalog = java.util.List.of();
+        artistCatalog = java.util.List.of();
+        genreCatalog = java.util.List.of();
+        loadedAlbumCards = loadedArtistCards = loadedGenreCards = 0;
+        albumsGridPane.getChildren().clear();
+        artistsGridPane.getChildren().clear();
+        genresGridPane.getChildren().clear();
+        albumsListView.getItems().clear();
+        artistsListView.getItems().clear();
+        genresListView.getItems().clear();
+    }
+
+    private void prefetchAlbumCards(double scrollPosition) {
+        if (scrollPosition < BROWSE_PREFETCH_THRESHOLD || isLoadingAlbumCards
+                || loadedAlbumCards >= albumCatalog.size()) {
+            return;
+        }
+        isLoadingAlbumCards = true;
         Platform.runLater(() -> {
-            populateGridChunked(gridPane, songs, endIndex, chunkSize, scrollPane, type);
+            appendBrowseCards(albumsGridPane, albumCatalog, loadedAlbumCards, BROWSE_PREFETCH_ITEMS,
+                    albumsScrollPane, "album");
+            loadedAlbumCards = Math.min(loadedAlbumCards + BROWSE_PREFETCH_ITEMS, albumCatalog.size());
+            isLoadingAlbumCards = false;
+        });
+    }
+
+    private void prefetchArtistCards(double scrollPosition) {
+        if (scrollPosition < BROWSE_PREFETCH_THRESHOLD || isLoadingArtistCards
+                || loadedArtistCards >= artistCatalog.size()) {
+            return;
+        }
+        isLoadingArtistCards = true;
+        Platform.runLater(() -> {
+            appendBrowseCards(artistsGridPane, artistCatalog, loadedArtistCards, BROWSE_PREFETCH_ITEMS,
+                    artistsScrollPane, "artist");
+            loadedArtistCards = Math.min(loadedArtistCards + BROWSE_PREFETCH_ITEMS, artistCatalog.size());
+            isLoadingArtistCards = false;
+        });
+    }
+
+    private void prefetchGenreCards(double scrollPosition) {
+        if (scrollPosition < BROWSE_PREFETCH_THRESHOLD || isLoadingGenreCards
+                || loadedGenreCards >= genreCatalog.size()) {
+            return;
+        }
+        isLoadingGenreCards = true;
+        Platform.runLater(() -> {
+            appendBrowseCards(genresGridPane, genreCatalog, loadedGenreCards, BROWSE_PREFETCH_ITEMS,
+                    genresScrollPane, "genre");
+            loadedGenreCards = Math.min(loadedGenreCards + BROWSE_PREFETCH_ITEMS, genreCatalog.size());
+            isLoadingGenreCards = false;
         });
     }
 
@@ -726,23 +807,25 @@ public class MainView extends StackPane {
         if (gridPane == null || gridPane.getChildren().isEmpty())
             return;
 
-        double minCardWidth = 180;
-        double maxCardWidth = 240;
         double hgap = gridPane.getHgap();
 
-        // Account for scrollbar and padding
-        double availableWidth = containerWidth - 90;
+        // Keep a deliberate, poster-like layout instead of filling the page with
+        // many tiny cards. A regular window shows four columns; a maximised or
+        // fullscreen window has room for five noticeably larger columns.
+        Stage stage = getScene() == null ? null : (Stage) getScene().getWindow();
+        boolean largeWindow = stage != null && (stage.isFullScreen() || stage.isMaximized());
+        int preferredColumns = largeWindow ? 5 : 4;
+        double minimumCardWidth = largeWindow ? 220 : 160;
+
+        // Account for the scrollbar and the grid's visual breathing room.
+        double availableWidth = containerWidth - 60;
         if (availableWidth < 200)
             availableWidth = 200;
 
-        int cols = (int) ((availableWidth + hgap) / (minCardWidth + hgap));
-        if (cols < 1)
-            cols = 1;
+        int columnsThatFit = Math.max(1, (int) ((availableWidth + hgap) / (minimumCardWidth + hgap)));
+        int cols = Math.min(preferredColumns, columnsThatFit);
 
         double cardWidth = (availableWidth - (cols - 1) * hgap) / cols;
-        if (cardWidth > maxCardWidth) {
-            cardWidth = maxCardWidth;
-        }
 
         int index = 0;
         for (javafx.scene.Node node : gridPane.getChildren()) {
@@ -921,12 +1004,11 @@ public class MainView extends StackPane {
 
         homeBtn = createSidebarButton("Home", SVGIcons.createHomeIcon(16, Color.WHITE));
         homeBtn.getStyleClass().add("sidebar-item-active");
-        browseBtn = createSidebarButton("Browse", SVGIcons.createCompassIcon(16, Color.WHITE));
         onlineBtn = createSidebarButton("Online", SVGIcons.createRadioIcon(16, Color.WHITE));
         onlineBtn.visibleProperty().bind(viewModel.onlineMusicEnabledProperty());
         onlineBtn.managedProperty().bind(viewModel.onlineMusicEnabledProperty());
 
-        sidebar.getChildren().addAll(homeBtn, browseBtn, onlineBtn);
+        sidebar.getChildren().addAll(homeBtn, onlineBtn);
 
         libraryHeader = new Label("Library");
         libraryHeader.setStyle(
@@ -942,7 +1024,7 @@ public class MainView extends StackPane {
 
         sidebar.getChildren().addAll(albumsBtn, artistsBtn, genresBtn, songsBtn, favoritesBtn, playlistsBtn);
 
-        sidebarButtons.addAll(java.util.Arrays.asList(homeBtn, browseBtn, onlineBtn, albumsBtn, artistsBtn, genresBtn, songsBtn,
+        sidebarButtons.addAll(java.util.Arrays.asList(homeBtn, onlineBtn, albumsBtn, artistsBtn, genresBtn, songsBtn,
                 favoritesBtn, playlistsBtn));
 
         // Click actions
@@ -955,8 +1037,6 @@ public class MainView extends StackPane {
 
                 if (btn == homeBtn) {
                     showHomeView();
-                } else if (btn == browseBtn) {
-                    showNewView();
                 } else if (btn == onlineBtn) {
                     showOnlineMusicView();
                 } else if (btn == albumsBtn) {
@@ -966,16 +1046,10 @@ public class MainView extends StackPane {
                 } else if (btn == genresBtn) {
                     showGenresGrid();
                 } else if (btn == favoritesBtn) {
-                    switchViewWithFade(albumDetailView);
-                    javafx.collections.ObservableList<Song> favs = FXCollections.observableArrayList();
-                    for (Song s : viewModel.getLibrarySongs()) {
-                        if (s.isFavorite())
-                            favs.add(s);
-                    }
-                    albumDetailView.setPlaylist("Favorites", favs);
+                    showFavorites();
                 } else if (btn == songsBtn) {
-                    switchViewWithFade(albumDetailView);
-                    albumDetailView.setPlaylist("Songs", viewModel.getLibrarySongs());
+                    showSongListSection("Songs");
+                    songsBtn.getStyleClass().add("sidebar-item-active");
                 } else if (btn == playlistsBtn) {
                     showPlaylistView();
                 }
@@ -993,6 +1067,9 @@ public class MainView extends StackPane {
             chooser.setTitle("Select Music Folder");
             File selected = chooser.showDialog(getScene().getWindow());
             if (selected != null) {
+                if (viewModel.getLibrarySongs().isEmpty()) {
+                    showInitialImport();
+                }
                 LibraryManager.getInstance().addWatchedFolder(selected.getAbsolutePath());
                 viewModel.getLibrarySongs().setAll(LibraryManager.getInstance().getSongs());
             }
@@ -1110,6 +1187,59 @@ public class MainView extends StackPane {
         });
 
         return sidebar;
+    }
+
+    private void createInitialImportOverlay() {
+        initialImportStatus = new Label();
+        initialImportStatus.setStyle("-fx-text-fill: rgba(255,255,255,0.72); -fx-font-size: 14px;");
+
+        Label title = new Label("Building your music library");
+        title.setStyle("-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold;");
+        Label detail = new Label("First-time setup usually takes 10–20 seconds. You can start exploring as soon as it finishes.");
+        detail.setWrapText(true);
+        detail.setMaxWidth(390);
+        detail.setStyle("-fx-text-fill: rgba(255,255,255,0.58); -fx-font-size: 13px;");
+
+        ProgressIndicator progress = new ProgressIndicator();
+        progress.setPrefSize(42, 42);
+        VBox card = new VBox(14, progress, title, detail, initialImportStatus);
+        card.setAlignment(Pos.CENTER);
+        card.setMaxWidth(460);
+        card.setPadding(new Insets(32));
+        card.setStyle("-fx-background-color: rgba(26,26,30,0.96); -fx-background-radius: 18; -fx-border-color: rgba(255,255,255,0.12); -fx-border-radius: 18;");
+
+        initialImportOverlay = new StackPane(card);
+        initialImportOverlay.setStyle("-fx-background-color: rgba(0,0,0,0.52);");
+        initialImportOverlay.setVisible(false);
+        initialImportOverlay.setManaged(false);
+        getChildren().add(initialImportOverlay);
+    }
+
+    private void showInitialImport() {
+        showingInitialImport = true;
+        initialImportStatus.setText("Preparing your songs…");
+        initialImportOverlay.setVisible(true);
+        initialImportOverlay.setManaged(true);
+    }
+
+    private void updateInitialImportStatus(int songsFound) {
+        if (showingInitialImport) {
+            initialImportStatus.setText(String.format("Found %,d songs…", songsFound));
+        }
+    }
+
+    private void finishInitialImport(int songsFound) {
+        if (!showingInitialImport) {
+            return;
+        }
+        initialImportStatus.setText(String.format("%,d songs are ready", songsFound));
+        javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(Duration.millis(900));
+        delay.setOnFinished(e -> {
+            showingInitialImport = false;
+            initialImportOverlay.setVisible(false);
+            initialImportOverlay.setManaged(false);
+        });
+        delay.play();
     }
 
     private void toggleSidebar() {
@@ -1318,6 +1448,9 @@ public class MainView extends StackPane {
         genresScrollPane.widthProperty().addListener((obs, oldVal, newVal) -> {
             layoutGridResponsively(genresGridPane, newVal.doubleValue());
         });
+        albumsScrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> prefetchAlbumCards(newVal.doubleValue()));
+        artistsScrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> prefetchArtistCards(newVal.doubleValue()));
+        genresScrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> prefetchGenreCards(newVal.doubleValue()));
 
         center.getChildren().addAll(header, songListView, albumsScrollPane, albumsListView, artistsScrollPane,
                 artistsListView, genresScrollPane, genresListView);
@@ -2431,36 +2564,26 @@ public class MainView extends StackPane {
     }
 
     private void populateAlbumsList() {
-        albumsListView.getItems().clear();
-        java.util.Set<String> seenAlbums = new java.util.HashSet<>();
-        for (Song song : viewModel.getLibrarySongs()) {
-            String album = song.getAlbum();
-            if (album != null && !album.isEmpty() && seenAlbums.add(album)) {
-                albumsListView.getItems().add(album);
-            }
-        }
+        if (albumCatalog.isEmpty())
+            albumCatalog = buildBrowseCatalog("albums", Song::getAlbum);
+        albumsListView.getItems().setAll(extractBrowseNames(albumCatalog, Song::getAlbum));
     }
 
     private void populateArtistsList() {
-        artistsListView.getItems().clear();
-        java.util.Set<String> seenArtists = new java.util.HashSet<>();
-        for (Song song : viewModel.getLibrarySongs()) {
-            String artist = song.getArtist();
-            if (artist != null && !artist.isEmpty() && seenArtists.add(artist)) {
-                artistsListView.getItems().add(artist);
-            }
-        }
+        if (artistCatalog.isEmpty())
+            artistCatalog = buildBrowseCatalog("artists", Song::getArtist);
+        artistsListView.getItems().setAll(extractBrowseNames(artistCatalog, Song::getArtist));
     }
 
     private void populateGenresList() {
-        genresListView.getItems().clear();
-        java.util.Set<String> seenGenres = new java.util.HashSet<>();
-        for (Song song : viewModel.getLibrarySongs()) {
-            String genre = song.getGenre();
-            if (genre != null && !genre.isEmpty() && seenGenres.add(genre)) {
-                genresListView.getItems().add(genre);
-            }
-        }
+        if (genreCatalog.isEmpty())
+            genreCatalog = buildBrowseCatalog("genres", Song::getGenre);
+        genresListView.getItems().setAll(extractBrowseNames(genreCatalog, Song::getGenre));
+    }
+
+    private java.util.List<String> extractBrowseNames(java.util.List<Song> catalog,
+            java.util.function.Function<Song, String> nameExtractor) {
+        return catalog.stream().map(nameExtractor).toList();
     }
 
     private class AlbumListCell extends ListCell<String> {
@@ -2508,11 +2631,20 @@ public class MainView extends StackPane {
                     } else {
                         subtitleLabel.setText("Genre");
                     }
-                    byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(sample.getPath());
-                    if (artBytes != null) {
-                        artView.setImage(new Image(new ByteArrayInputStream(artBytes), 40, 40, true, true));
+                    Image cachedImage = aura.music.utils.ImageCache.getCachedImage(sample.getPath());
+                    if (cachedImage != null) {
+                        artView.setImage(cachedImage);
                     } else {
                         artView.setImage(null);
+                        String expectedItem = item;
+                        java.util.concurrent.CompletableFuture
+                                .supplyAsync(() -> aura.music.library.MetadataExtractor.extractArtworkBytes(sample.getPath()))
+                                .thenAcceptAsync(artBytes -> {
+                                    if (!isEmpty() && expectedItem.equals(getItem()) && artBytes != null) {
+                                        artView.setImage(aura.music.utils.ImageCache.getImage(sample.getPath(), artBytes,
+                                                40, 40));
+                                    }
+                                }, Platform::runLater);
                     }
                 } else {
                     subtitleLabel.setText("");

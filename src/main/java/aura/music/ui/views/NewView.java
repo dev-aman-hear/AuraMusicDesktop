@@ -9,13 +9,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-
-import java.io.ByteArrayInputStream;
 import java.util.List;
 
 public class NewView extends ScrollPane {
@@ -70,27 +67,41 @@ public class NewView extends ScrollPane {
         grid.setVgap(16);
         grid.setStyle("-fx-background-color: transparent;");
 
-        // Column constraints for 3 columns
         for (int i = 0; i < 3; i++) {
             ColumnConstraints cc = new ColumnConstraints();
             cc.setPercentWidth(33.33);
             grid.getColumnConstraints().add(cc);
         }
 
-        List<Song> songs = viewModel.getLibrarySongs();
-        int index = 0;
-        for (int i = 0; i < Math.min(15, songs.size()); i++) {
-            Song song = songs.get(i);
-            Pane songRow = createSongRowItem(song);
+        rebuildBestNewSongs(grid);
 
-            int col = index % 3;
-            int row = index / 3;
-            grid.add(songRow, col, row);
-            index++;
-        }
+        viewModel.getLibrarySongs().addListener((javafx.collections.ListChangeListener<Song>) c -> {
+            javafx.application.Platform.runLater(() -> rebuildBestNewSongs(grid));
+        });
 
         section.getChildren().addAll(headerRow, grid);
         return section;
+    }
+
+    private void rebuildBestNewSongs(GridPane grid) {
+        grid.getChildren().clear();
+        List<Song> songs = viewModel.getLibrarySongs();
+        if (songs.isEmpty()) {
+            Label emptyLabel = new Label("No new songs found in library");
+            emptyLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.4); -fx-font-size: 13px; -fx-font-style: italic;");
+            grid.add(emptyLabel, 0, 0, 3, 1);
+            return;
+        }
+
+        int count = Math.min(15, songs.size());
+        for (int i = 0; i < count; i++) {
+            Song song = songs.get(i);
+            Pane songRow = createSongRowItem(song);
+
+            int col = i % 3;
+            int row = i / 3;
+            grid.add(songRow, col, row);
+        }
     }
 
     private Pane createSongRowItem(Song song) {
@@ -114,14 +125,14 @@ public class NewView extends ScrollPane {
         clip.setArcHeight(8);
         artView.setClip(clip);
 
-        byte[] artBytes = aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath());
-        if (artBytes != null) {
-            artView.setImage(new Image(new ByteArrayInputStream(artBytes), 44, 44, true, true));
-        } else {
-            Label placeholder = new Label("🎵");
-            placeholder.setStyle("-fx-font-size: 16px; -fx-text-fill: rgba(255,255,255,0.2);");
-            artContainer.getChildren().add(placeholder);
-        }
+        Label placeholder = new Label("🎵");
+        placeholder.setStyle("-fx-font-size: 16px; -fx-text-fill: rgba(255,255,255,0.2);");
+        artContainer.getChildren().add(placeholder);
+
+        aura.music.library.ArtworkCache.getInstance().getArtworkAsync(song, img -> {
+            if (img != null)
+                artView.setImage(img);
+        });
         artContainer.getChildren().add(artView);
 
         // Metadata
@@ -165,39 +176,11 @@ public class NewView extends ScrollPane {
         HBox cardsRow = new HBox(20);
         cardsRow.setStyle("-fx-background-color: transparent;");
 
-        List<Song> songs = viewModel.getLibrarySongs();
-        java.util.Map<String, List<Song>> artistMap = new java.util.HashMap<>();
-        for (Song s : songs) {
-            String artist = s.getArtist();
-            if (artist != null && !artist.isEmpty()) {
-                artistMap.computeIfAbsent(artist, k -> new java.util.ArrayList<>()).add(s);
-            }
-        }
+        rebuildTopArtists(cardsRow, onArtistSelect);
 
-        if (artistMap.isEmpty()) {
-            cardsRow.getChildren().addAll(
-                    createSquareCard("Lata Mangeshkar", "Artist", null, null),
-                    createSquareCard("Arijit Singh", "Artist", null, null),
-                    createSquareCard("Ed Sheeran", "Artist", null, null),
-                    createSquareCard("Coldplay", "Artist", null, null),
-                    createSquareCard("Taylor Swift", "Artist", null, null));
-        } else {
-            List<String> artists = new java.util.ArrayList<>(artistMap.keySet());
-            java.util.Collections.shuffle(artists);
-            int count = Math.min(15, artists.size());
-            for (int i = 0; i < count; i++) {
-                String artistName = artists.get(i);
-                List<Song> artistSongs = artistMap.get(artistName);
-                Song representative = artistSongs.get(0);
-                byte[] art = aura.music.library.MetadataExtractor.extractArtworkBytes(representative.getPath());
-
-                cardsRow.getChildren().add(createSquareCard(artistName, "Artist", art, () -> {
-                    if (onArtistSelect != null) {
-                        onArtistSelect.accept(artistName);
-                    }
-                }));
-            }
-        }
+        viewModel.getLibrarySongs().addListener((javafx.collections.ListChangeListener<Song>) c -> {
+            javafx.application.Platform.runLater(() -> rebuildTopArtists(cardsRow, onArtistSelect));
+        });
 
         ScrollPane scroll = new ScrollPane(cardsRow);
         scroll.setFitToHeight(true);
@@ -209,6 +192,42 @@ public class NewView extends ScrollPane {
 
         section.getChildren().addAll(sectionTitle, scroll);
         return section;
+    }
+
+    private void rebuildTopArtists(HBox container, java.util.function.Consumer<String> onArtistSelect) {
+        container.getChildren().clear();
+        List<Song> songs = viewModel.getLibrarySongs();
+        java.util.Map<String, List<Song>> artistMap = new java.util.LinkedHashMap<>();
+        for (Song s : songs) {
+            String artist = s.getArtist();
+            if (artist != null && !artist.isEmpty()) {
+                artistMap.computeIfAbsent(artist, k -> new java.util.ArrayList<>()).add(s);
+            }
+        }
+
+        if (artistMap.isEmpty()) {
+            Song firstSong = songs.isEmpty() ? null : songs.get(0);
+            container.getChildren().addAll(
+                    createSquareCard("Lata Mangeshkar", "Artist", firstSong, null),
+                    createSquareCard("Arijit Singh", "Artist", firstSong, null),
+                    createSquareCard("Ed Sheeran", "Artist", firstSong, null),
+                    createSquareCard("Coldplay", "Artist", firstSong, null),
+                    createSquareCard("Taylor Swift", "Artist", firstSong, null));
+        } else {
+            List<String> artists = new java.util.ArrayList<>(artistMap.keySet());
+            int count = Math.min(15, artists.size());
+            for (int i = 0; i < count; i++) {
+                String artistName = artists.get(i);
+                List<Song> artistSongs = artistMap.get(artistName);
+                Song representative = artistSongs.get(0);
+
+                container.getChildren().add(createSquareCard(artistName, "Artist", representative, () -> {
+                    if (onArtistSelect != null) {
+                        onArtistSelect.accept(artistName);
+                    }
+                }));
+            }
+        }
     }
 
     private VBox createTrendyGenerSection(java.util.function.Consumer<String> onGenreSelect) {
@@ -221,39 +240,11 @@ public class NewView extends ScrollPane {
         HBox cardsRow = new HBox(20);
         cardsRow.setStyle("-fx-background-color: transparent;");
 
-        List<Song> songs = viewModel.getLibrarySongs();
-        java.util.Map<String, List<Song>> genreMap = new java.util.HashMap<>();
-        for (Song s : songs) {
-            String genre = s.getGenre();
-            if (genre != null && !genre.isEmpty()) {
-                genreMap.computeIfAbsent(genre, k -> new java.util.ArrayList<>()).add(s);
-            }
-        }
+        rebuildTrendyGenres(cardsRow, onGenreSelect);
 
-        if (genreMap.isEmpty()) {
-            cardsRow.getChildren().addAll(
-                    createSquareCard("Pop", "Genre", null, null),
-                    createSquareCard("Rock", "Genre", null, null),
-                    createSquareCard("Hip-Hop", "Genre", null, null),
-                    createSquareCard("Classical", "Genre", null, null),
-                    createSquareCard("Jazz", "Genre", null, null));
-        } else {
-            List<String> genres = new java.util.ArrayList<>(genreMap.keySet());
-            java.util.Collections.shuffle(genres);
-            int count = Math.min(15, genres.size());
-            for (int i = 0; i < count; i++) {
-                String genreName = genres.get(i);
-                List<Song> genreSongs = genreMap.get(genreName);
-                Song representative = genreSongs.get(0);
-                byte[] art = aura.music.library.MetadataExtractor.extractArtworkBytes(representative.getPath());
-
-                cardsRow.getChildren().add(createSquareCard(genreName, "Genre", art, () -> {
-                    if (onGenreSelect != null) {
-                        onGenreSelect.accept(genreName);
-                    }
-                }));
-            }
-        }
+        viewModel.getLibrarySongs().addListener((javafx.collections.ListChangeListener<Song>) c -> {
+            javafx.application.Platform.runLater(() -> rebuildTrendyGenres(cardsRow, onGenreSelect));
+        });
 
         ScrollPane scroll = new ScrollPane(cardsRow);
         scroll.setFitToHeight(true);
@@ -267,7 +258,43 @@ public class NewView extends ScrollPane {
         return section;
     }
 
-    private Pane createSquareCard(Object genername2, String subtitle, byte[] artBytes, Runnable onClick) {
+    private void rebuildTrendyGenres(HBox container, java.util.function.Consumer<String> onGenreSelect) {
+        container.getChildren().clear();
+        List<Song> songs = viewModel.getLibrarySongs();
+        java.util.Map<String, List<Song>> genreMap = new java.util.LinkedHashMap<>();
+        for (Song s : songs) {
+            String genre = s.getGenre();
+            if (genre != null && !genre.isEmpty()) {
+                genreMap.computeIfAbsent(genre, k -> new java.util.ArrayList<>()).add(s);
+            }
+        }
+
+        if (genreMap.isEmpty()) {
+            Song firstSong = songs.isEmpty() ? null : songs.get(0);
+            container.getChildren().addAll(
+                    createSquareCard("Pop", "Genre", firstSong, null),
+                    createSquareCard("Rock", "Genre", firstSong, null),
+                    createSquareCard("Hip-Hop", "Genre", firstSong, null),
+                    createSquareCard("Classical", "Genre", firstSong, null),
+                    createSquareCard("Jazz", "Genre", firstSong, null));
+        } else {
+            List<String> genres = new java.util.ArrayList<>(genreMap.keySet());
+            int count = Math.min(15, genres.size());
+            for (int i = 0; i < count; i++) {
+                String genreName = genres.get(i);
+                List<Song> genreSongs = genreMap.get(genreName);
+                Song representative = genreSongs.get(0);
+
+                container.getChildren().add(createSquareCard(genreName, "Genre", representative, () -> {
+                    if (onGenreSelect != null) {
+                        onGenreSelect.accept(genreName);
+                    }
+                }));
+            }
+        }
+    }
+
+    private Pane createSquareCard(Object genername2, String subtitle, Song representative, Runnable onClick) {
         VBox card = new VBox(8);
         card.setPrefWidth(150);
         card.setMinWidth(150);
@@ -291,12 +318,15 @@ public class NewView extends ScrollPane {
         clip.setArcHeight(24);
         artView.setClip(clip);
 
-        if (artBytes != null) {
-            artView.setImage(new Image(new ByteArrayInputStream(artBytes), 150, 150, true, true));
-        } else {
-            Label placeholder = new Label("🎵");
-            placeholder.setStyle("-fx-font-size: 48px; -fx-text-fill: rgba(255,255,255,0.15);");
-            artContainer.getChildren().add(placeholder);
+        Label placeholder = new Label("🎵");
+        placeholder.setStyle("-fx-font-size: 48px; -fx-text-fill: rgba(255,255,255,0.15);");
+        artContainer.getChildren().add(placeholder);
+
+        if (representative != null) {
+            aura.music.library.ArtworkCache.getInstance().getArtworkAsync(representative, img -> {
+                if (img != null)
+                    artView.setImage(img);
+            });
         }
         artContainer.getChildren().add(artView);
 

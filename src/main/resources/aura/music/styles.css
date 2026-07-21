@@ -77,6 +77,8 @@
     -fx-border-radius: 16px;
     -fx-border-width: 1px;
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.25), 25, 0, 0, 15);
+    -fx-cache: true;
+    -fx-cache-hint: speed;
 }
 
 .card {
@@ -86,6 +88,8 @@
     -fx-border-color: -fx-custom-border-color;
     -fx-border-width: 1px;
     -fx-transition: all 0.2s ease-in-out;
+    -fx-cache: true;
+    -fx-cache-hint: speed;
 }
 
 .card:hover {

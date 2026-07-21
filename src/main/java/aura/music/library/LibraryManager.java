@@ -2,10 +2,7 @@ package aura.music.library;
 
 import aura.music.model.Playlist;
 import aura.music.model.Song;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
-
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
@@ -30,16 +27,18 @@ public class LibraryManager {
             });
 
     private final String appDataPath;
-    private final String libraryCacheFile;
-    private final String playlistsFile;
     private final String settingsFile;
+    private BrowseCatalogCache browseCatalogCache;
+    private boolean browseCatalogCacheDirty;
     // New username field with default
     private final javafx.beans.property.SimpleStringProperty usernameProperty = new javafx.beans.property.SimpleStringProperty(
             "Master");
-    private final javafx.beans.property.SimpleBooleanProperty onlineMusicEnabledProperty =
-            new javafx.beans.property.SimpleBooleanProperty(false);
-    private final javafx.beans.property.SimpleStringProperty youtubeApiKeyProperty =
-            new javafx.beans.property.SimpleStringProperty("");
+    private final javafx.beans.property.SimpleBooleanProperty onlineMusicEnabledProperty = new javafx.beans.property.SimpleBooleanProperty(
+            false);
+    private final javafx.beans.property.SimpleStringProperty youtubeApiKeyProperty = new javafx.beans.property.SimpleStringProperty(
+            "");
+    private final javafx.beans.property.SimpleIntegerProperty lyricTextSizeProperty = new javafx.beans.property.SimpleIntegerProperty(
+            26);
 
     private WatchService watchService;
     private final Map<WatchKey, Path> watchKeys = new ConcurrentHashMap<>();
@@ -72,23 +71,52 @@ public class LibraryManager {
         return onlineMusicEnabledProperty;
     }
 
-    public String getYoutubeApiKey() { return youtubeApiKeyProperty.get(); }
+    public String getYoutubeApiKey() {
+        return youtubeApiKeyProperty.get();
+    }
 
-    /** Stored in the current user's OS preferences, never in the project or settings JSON. */
+    /**
+     * Stored in the current user's OS preferences, never in the project or settings
+     * JSON.
+     */
     public void setYoutubeApiKey(String apiKey) {
         String value = apiKey == null ? "" : apiKey.trim();
         youtubeApiKeyProperty.set(value);
         java.util.prefs.Preferences.userNodeForPackage(LibraryManager.class).put("youtubeDataApiKey", value);
     }
 
-    public javafx.beans.property.StringProperty youtubeApiKeyProperty() { return youtubeApiKeyProperty; }
+    public javafx.beans.property.StringProperty youtubeApiKeyProperty() {
+        return youtubeApiKeyProperty;
+    }
+
+    public int getLyricTextSize() {
+        return lyricTextSizeProperty.get();
+    }
+
+    public void setLyricTextSize(int size) {
+        lyricTextSizeProperty.set(size);
+        saveSettings();
+    }
+
+    public javafx.beans.property.IntegerProperty lyricTextSizeProperty() {
+        return lyricTextSizeProperty;
+    }
 
     public interface LibraryListener {
         void onSongAdded(Song song);
 
         void onSongRemoved(Song song);
-        
+
         void onSongUpdated(Song song);
+
+        default void onScanStarted(File folder) {
+        }
+
+        default void onScanProgress(int songsFound) {
+        }
+
+        default void onScanFinished(File folder, int songsFound) {
+        }
     }
 
     private final List<LibraryListener> listeners = new CopyOnWriteArrayList<>();
@@ -106,15 +134,20 @@ public class LibraryManager {
         appDataPath = userHome + File.separator + ".auramusic";
         new File(appDataPath).mkdirs();
 
-        libraryCacheFile = appDataPath + File.separator + "library_cache.json";
-        playlistsFile = appDataPath + File.separator + "playlists.json";
         settingsFile = appDataPath + File.separator + "settings.json";
         youtubeApiKeyProperty.set(java.util.prefs.Preferences.userNodeForPackage(LibraryManager.class)
                 .get("youtubeDataApiKey", ""));
 
-        loadLibraryFromCache();
-        loadPlaylists();
-        startFolderWatcher();
+        // Initialization deferred to init() to prevent blocking
+    }
+
+    public java.util.concurrent.CompletableFuture<Void> init() {
+        return java.util.concurrent.CompletableFuture.runAsync(() -> {
+            loadLibraryFromDatabase();
+            loadPlaylistsFromDatabase();
+            startFolderWatcher();
+            loadSettings();
+        });
     }
 
     public static synchronized LibraryManager getInstance() {
@@ -126,6 +159,29 @@ public class LibraryManager {
 
     public List<Song> getSongs() {
         return songs;
+    }
+
+    /**
+     * Returns a small, persisted index of representative songs for the requested
+     * browse category. The first call after a library change refreshes the JSON
+     * cache; subsequent launches only resolve the saved paths.
+     */
+    public synchronized List<Song> getBrowseCatalog(String category) {
+        if (browseCatalogCache == null) {
+            browseCatalogCache = new BrowseCatalogCache(Paths.get(appDataPath, "browse-catalog-cache.json"));
+        }
+        List<Song> cached = browseCatalogCacheDirty ? null : browseCatalogCache.resolve(category, songMap);
+        if (cached != null) {
+            return cached;
+        }
+        browseCatalogCache.rebuild(songs);
+        browseCatalogCacheDirty = false;
+        List<Song> rebuilt = browseCatalogCache.resolve(category, songMap);
+        return rebuilt == null ? List.of() : rebuilt;
+    }
+
+    private synchronized void invalidateBrowseCatalogCache() {
+        browseCatalogCacheDirty = true;
     }
 
     public List<Playlist> getPlaylists() {
@@ -154,40 +210,26 @@ public class LibraryManager {
             songs.removeAll(toRemove);
             toRemove.forEach(s -> {
                 songMap.remove(s.getPath());
+                DatabaseManager.getInstance().removeSong(s.getPath());
                 listeners.forEach(l -> l.onSongRemoved(s));
             });
-            saveLibraryToCache();
+            invalidateBrowseCatalogCache();
         }
     }
 
     public void scanFolderAsync(File folder) {
+        if (!watchedFolders.contains(folder.getAbsolutePath())) {
+            watchedFolders.add(folder.getAbsolutePath());
+            saveSettings();
+        }
+
         scanExecutor.submit(() -> {
+            listeners.forEach(l -> l.onScanStarted(folder));
             List<Song> scannedSongs = new ArrayList<>();
             scanFolderRecursive(folder, scannedSongs);
 
-            boolean changed = false;
-
-            // 1. Add new or updated songs
-            for (Song song : scannedSongs) {
-                Song existing = songMap.get(song.getPath());
-                if (existing == null) {
-                    songs.add(song);
-                    songMap.put(song.getPath(), song);
-                    listeners.forEach(l -> l.onSongAdded(song));
-                    changed = true;
-                } else if (existing.getLastModified() != song.getLastModified()) {
-                    // Update existing song metadata in place
-                    int index = songs.indexOf(existing);
-                    if (index != -1) {
-                        songs.set(index, song);
-                    }
-                    songMap.put(song.getPath(), song);
-                    listeners.forEach(l -> l.onSongUpdated(song));
-                    changed = true;
-                }
-            }
-
-            // 2. Remove songs that no longer exist under this folder
+            // Phase 2: Batching Updates
+            // Process removals
             String folderPath = folder.getAbsolutePath();
             java.util.Set<String> scannedPaths = scannedSongs.stream()
                     .map(Song::getPath)
@@ -201,14 +243,12 @@ public class LibraryManager {
                 songs.removeAll(toRemove);
                 toRemove.forEach(s -> {
                     songMap.remove(s.getPath());
+                    DatabaseManager.getInstance().removeSong(s.getPath());
                     listeners.forEach(l -> l.onSongRemoved(s));
                 });
-                changed = true;
+                invalidateBrowseCatalogCache();
             }
-
-            if (changed) {
-                saveLibraryToCache();
-            }
+            listeners.forEach(l -> l.onScanFinished(folder, scannedSongs.size()));
         });
     }
 
@@ -217,6 +257,8 @@ public class LibraryManager {
         if (files == null)
             return;
 
+        List<Song> batch = new ArrayList<>();
+
         for (File file : files) {
             if (file.isDirectory()) {
                 scanFolderRecursive(file, scannedSongs);
@@ -224,15 +266,63 @@ public class LibraryManager {
                 String path = file.getAbsolutePath();
                 long lastMod = file.lastModified();
                 Song cached = songMap.get(path);
+
+                Song processedSong = null;
                 if (cached != null && cached.getLastModified() == lastMod) {
-                    scannedSongs.add(cached);
+                    processedSong = cached;
                 } else {
-                    Song newSong = MetadataExtractor.extract(file);
-                    if (newSong != null) {
-                        newSong.setLastModified(lastMod);
-                        scannedSongs.add(newSong);
+                    processedSong = MetadataExtractor.extract(file);
+                    if (processedSong != null) {
+                        processedSong.setLastModified(lastMod);
+                        // Extract artwork during scan
+                        ArtworkCache.getInstance().extractAndCacheThumbnail(processedSong);
                     }
                 }
+
+                if (processedSong != null) {
+                    scannedSongs.add(processedSong);
+                    batch.add(processedSong);
+
+                    // Flush batch every 50 songs
+                    if (batch.size() >= 50) {
+                        processBatch(batch);
+                        batch.clear();
+                        listeners.forEach(l -> l.onScanProgress(scannedSongs.size()));
+                        try {
+                            Thread.sleep(5);
+                        } catch (InterruptedException ignored) {
+                        } // Smooth scanning
+                    }
+                }
+            }
+        }
+
+        // Process remaining in the folder
+        if (!batch.isEmpty()) {
+            processBatch(batch);
+            batch.clear();
+            listeners.forEach(l -> l.onScanProgress(scannedSongs.size()));
+        }
+    }
+
+    private void processBatch(List<Song> batch) {
+        for (Song song : batch) {
+            Song existing = songMap.get(song.getPath());
+            if (existing == null) {
+                songs.add(song);
+                songMap.put(song.getPath(), song);
+                DatabaseManager.getInstance().insertOrUpdateSong(song);
+                listeners.forEach(l -> l.onSongAdded(song));
+                invalidateBrowseCatalogCache();
+            } else if (existing.getLastModified() != song.getLastModified()) {
+                int index = songs.indexOf(existing);
+                if (index != -1) {
+                    songs.set(index, song);
+                }
+                songMap.put(song.getPath(), song);
+                DatabaseManager.getInstance().insertOrUpdateSong(song);
+                listeners.forEach(l -> l.onSongUpdated(song));
+                invalidateBrowseCatalogCache();
             }
         }
     }
@@ -249,93 +339,35 @@ public class LibraryManager {
         if (query == null || query.trim().isEmpty()) {
             return new ArrayList<>(songs);
         }
-        String q = query.toLowerCase().trim();
-        
-        return songs.stream()
-                .filter(s -> isFuzzyMatch(q, s.getTitle()) || 
-                             isFuzzyMatch(q, s.getArtist()) || 
-                             isFuzzyMatch(q, s.getAlbum()) || 
-                             isFuzzyMatch(q, s.getGenre()))
-                .sorted((s1, s2) -> {
-                    // Rank by best score (lower is better)
-                    int score1 = Math.min(Math.min(levenshtein(q, s1.getTitle()), levenshtein(q, s1.getArtist())), levenshtein(q, s1.getAlbum()));
-                    int score2 = Math.min(Math.min(levenshtein(q, s2.getTitle()), levenshtein(q, s2.getArtist())), levenshtein(q, s2.getAlbum()));
-                    return Integer.compare(score1, score2);
-                })
-                .collect(Collectors.toList());
-    }
-
-    private boolean isFuzzyMatch(String query, String target) {
-        if (target == null || target.isEmpty()) return false;
-        String t = target.toLowerCase();
-        if (t.contains(query)) return true;
-        // Allow a few typos (max distance 2 or 3 depending on length)
-        int dist = levenshtein(query, t);
-        int maxTypos = Math.max(1, query.length() / 3);
-        return dist <= maxTypos;
-    }
-
-    private int levenshtein(String a, String b) {
-        if (a == null) a = "";
-        if (b == null) b = "";
-        a = a.toLowerCase();
-        b = b.toLowerCase();
-        int[] costs = new int[b.length() + 1];
-        for (int j = 0; j < costs.length; j++) costs[j] = j;
-        for (int i = 1; i <= a.length(); i++) {
-            costs[0] = i;
-            int nw = i - 1;
-            for (int j = 1; j <= b.length(); j++) {
-                int cj = Math.min(1 + Math.min(costs[j], costs[j - 1]), a.charAt(i - 1) == b.charAt(j - 1) ? nw : nw + 1);
-                nw = costs[j];
-                costs[j] = cj;
-            }
-        }
-        return costs[b.length()];
+        return DatabaseManager.getInstance().searchSongs(query);
     }
 
     // Persistence
     public void saveLibraryToCache() {
-        try (Writer writer = new FileWriter(libraryCacheFile)) {
-            new GsonBuilder().setPrettyPrinting().create().toJson(songs, writer);
-        } catch (IOException e) {
-            System.err.println("Failed to save library cache: " + e.getMessage());
-        }
+        // Obsolete, songs are saved incrementally to DB
     }
 
-    private void loadLibraryFromCache() {
-        File file = new File(libraryCacheFile);
-        if (!file.exists())
-            return;
-
-        try (Reader reader = new FileReader(file)) {
-            List<Song> cached = new Gson().fromJson(reader, new TypeToken<List<Song>>() {
-            }.getType());
-            if (cached != null) {
-                for (Song song : cached) {
-                    if (new File(song.getPath()).exists()) {
-                        songs.add(song);
-                        songMap.put(song.getPath(), song);
-                    }
-                }
+    private void loadLibraryFromDatabase() {
+        List<Song> loadedSongs = DatabaseManager.getInstance().getAllSongs();
+        for (Song song : loadedSongs) {
+            if (new File(song.getPath()).exists()) {
+                songs.add(song);
+                songMap.put(song.getPath(), song);
             }
-        } catch (Exception e) {
-            System.err.println("Failed to load library cache: " + e.getMessage());
         }
+        browseCatalogCache = new BrowseCatalogCache(Paths.get(appDataPath, "browse-catalog-cache.json"));
     }
 
     public void savePlaylists() {
-        try (Writer writer = new FileWriter(playlistsFile)) {
-            new GsonBuilder().setPrettyPrinting().create().toJson(playlists, writer);
-        } catch (IOException e) {
-            System.err.println("Failed to save playlists: " + e.getMessage());
+        for (Playlist pl : playlists) {
+            DatabaseManager.getInstance().savePlaylist(pl);
         }
     }
 
     // Delete a playlist and persist changes
     public void deletePlaylist(Playlist pl) {
         playlists.remove(pl);
-        savePlaylists();
+        DatabaseManager.getInstance().removePlaylist(pl.getId());
     }
 
     // Create a new playlist with a unique ID and default name, then persist
@@ -343,33 +375,24 @@ public class LibraryManager {
         String id = java.util.UUID.randomUUID().toString();
         Playlist pl = new Playlist(id, name);
         playlists.add(pl);
-        savePlaylists();
+        DatabaseManager.getInstance().savePlaylist(pl);
         return pl;
     }
 
-    private void loadPlaylists() {
-        File file = new File(playlistsFile);
-        if (!file.exists())
-            return;
-
-        try (Reader reader = new FileReader(file)) {
-            List<Playlist> loaded = new Gson().fromJson(reader, new TypeToken<List<Playlist>>() {
-            }.getType());
-            if (loaded != null) {
-                playlists.addAll(loaded);
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to load playlists: " + e.getMessage());
-        }
+    private void loadPlaylistsFromDatabase() {
+        List<Playlist> loaded = DatabaseManager.getInstance().getAllPlaylists();
+        playlists.addAll(loaded);
     }
 
     public void saveSettings() {
         try (Writer writer = new FileWriter(settingsFile)) {
-            // Create a JSON object with both watchedFolders and username
+            // Create a JSON object with watchedFolders, username, onlineMusicEnabled,
+            // lyricTextSize
             java.util.Map<String, Object> map = new java.util.HashMap<>();
             map.put("watchedFolders", watchedFolders);
             map.put("username", getUsername());
             map.put("onlineMusicEnabled", isOnlineMusicEnabled());
+            map.put("lyricTextSize", getLyricTextSize());
             new GsonBuilder().setPrettyPrinting().create().toJson(map, writer);
         } catch (IOException e) {
             System.err.println("Failed to save settings: " + e.getMessage());
@@ -378,8 +401,10 @@ public class LibraryManager {
 
     public void loadSettings() {
         File file = new File(settingsFile);
-        if (!file.exists())
+        if (!file.exists()) {
+            lyricTextSizeProperty.addListener((obs, oldVal, newVal) -> saveSettings());
             return;
+        }
 
         try (Reader reader = new FileReader(file)) {
             com.google.gson.JsonElement json = com.google.gson.JsonParser.parseReader(reader);
@@ -399,6 +424,9 @@ public class LibraryManager {
                 if (obj.has("onlineMusicEnabled")) {
                     onlineMusicEnabledProperty.set(obj.get("onlineMusicEnabled").getAsBoolean());
                 }
+                if (obj.has("lyricTextSize")) {
+                    lyricTextSizeProperty.set(obj.get("lyricTextSize").getAsInt());
+                }
             } else if (json.isJsonArray()) {
                 // Legacy format: array of strings (watched folders)
                 for (com.google.gson.JsonElement el : json.getAsJsonArray()) {
@@ -413,6 +441,8 @@ public class LibraryManager {
         } catch (Exception e) {
             System.err.println("Failed to load settings: " + e.getMessage());
         }
+
+        lyricTextSizeProperty.addListener((obs, oldVal, newVal) -> saveSettings());
     }
 
     // Folder Watcher using java.nio.file.WatchService
@@ -478,16 +508,16 @@ public class LibraryManager {
                             if (newSong != null && !songMap.containsKey(newSong.getPath())) {
                                 songs.add(newSong);
                                 songMap.put(newSong.getPath(), newSong);
+                                DatabaseManager.getInstance().insertOrUpdateSong(newSong);
                                 listeners.forEach(l -> l.onSongAdded(newSong));
-                                saveLibraryToCache();
                             }
                         }
                     } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
                         Song removed = songMap.remove(child.toString());
                         if (removed != null) {
                             songs.remove(removed);
+                            DatabaseManager.getInstance().removeSong(removed.getPath());
                             listeners.forEach(l -> l.onSongRemoved(removed));
-                            saveLibraryToCache();
                         }
                     }
                 }
@@ -503,7 +533,8 @@ public class LibraryManager {
                 break;
             } catch (Exception e) {
                 if (watching) {
-                    System.err.println("Error in watch loop: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getName()));
+                    System.err.println("Error in watch loop: "
+                            + (e.getMessage() != null ? e.getMessage() : e.getClass().getName()));
                 }
             }
         }

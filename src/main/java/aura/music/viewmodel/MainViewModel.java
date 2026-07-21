@@ -12,12 +12,15 @@ import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
-import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainViewModel {
 
@@ -25,7 +28,8 @@ public class MainViewModel {
     private final LibraryManager libraryManager = LibraryManager.getInstance();
     private final ThemeEngine themeEngine = ThemeEngine.getInstance();
     private PauseTransition sleepTimer;
-    // Used by provider-owned playback (currently YouTube's official embedded player).
+    // Used by provider-owned playback (currently YouTube's official embedded
+    // player).
     private boolean externalPlaybackActive;
     private Runnable externalResume;
     private Runnable externalPause;
@@ -47,14 +51,27 @@ public class MainViewModel {
     private final BooleanProperty shuffleMode = new SimpleBooleanProperty(false);
     private final ObjectProperty<RepeatMode> repeatMode = new SimpleObjectProperty<>(RepeatMode.OFF);
 
-    public BooleanProperty shuffleModeProperty() { return shuffleMode; }
-    public ObjectProperty<RepeatMode> repeatModeProperty() { return repeatMode; }
+    public BooleanProperty shuffleModeProperty() {
+        return shuffleMode;
+    }
+
+    public ObjectProperty<RepeatMode> repeatModeProperty() {
+        return repeatMode;
+    }
 
     private final BooleanProperty miniplayerAlwaysOnTop = new SimpleBooleanProperty(true);
-    public BooleanProperty miniplayerAlwaysOnTopProperty() { return miniplayerAlwaysOnTop; }
 
-    public BooleanProperty onlineMusicEnabledProperty() { return libraryManager.onlineMusicEnabledProperty(); }
-    public StringProperty youtubeApiKeyProperty() { return libraryManager.youtubeApiKeyProperty(); }
+    public BooleanProperty miniplayerAlwaysOnTopProperty() {
+        return miniplayerAlwaysOnTop;
+    }
+
+    public BooleanProperty onlineMusicEnabledProperty() {
+        return libraryManager.onlineMusicEnabledProperty();
+    }
+
+    public StringProperty youtubeApiKeyProperty() {
+        return libraryManager.youtubeApiKeyProperty();
+    }
 
     // Lists
     private final ObservableList<Song> librarySongs = FXCollections.observableArrayList();
@@ -62,28 +79,108 @@ public class MainViewModel {
     private final ObservableList<Song> queue = FXCollections.observableArrayList();
     private final ObservableList<Song> recentlyPlayed = FXCollections.observableArrayList();
     private final IntegerProperty currentQueueIndex = new SimpleIntegerProperty(-1);
-    // Filtered view of the queue that always places the currently playing song first
+    // Filtered view of the queue that always places the currently playing song
+    // first
     private final ObservableList<Song> filteredQueue = FXCollections.observableArrayList();
 
     // Lyrics
     private final ObservableList<LyricLine> lyricsLines = FXCollections.observableArrayList();
     private final IntegerProperty activeLyricLineIndex = new SimpleIntegerProperty(-1);
-    private final IntegerProperty lyricTextSize = new SimpleIntegerProperty(26);
+    private final DoubleProperty lyricSyncOffsetSeconds = new SimpleDoubleProperty(0.0);
 
-    public ObservableList<LyricLine> getLyricsLines() { return lyricsLines; }
-    public IntegerProperty activeLyricLineIndexProperty() { return activeLyricLineIndex; }
-    public IntegerProperty lyricTextSizeProperty() { return lyricTextSize; }
+    public ObservableList<LyricLine> getLyricsLines() {
+        return lyricsLines;
+    }
+
+    public IntegerProperty activeLyricLineIndexProperty() {
+        return activeLyricLineIndex;
+    }
+
+    public DoubleProperty lyricSyncOffsetSecondsProperty() {
+        return lyricSyncOffsetSeconds;
+    }
+
+    public void adjustLyricOffset(double deltaSeconds) {
+        lyricSyncOffsetSeconds.set(Math.round((lyricSyncOffsetSeconds.get() + deltaSeconds) * 10.0) / 10.0);
+    }
+
+    public void resetLyricOffset() {
+        lyricSyncOffsetSeconds.set(0.0);
+    }
+
+    public void loadManualLyricFile(File lrcFile) {
+        Song song = currentSong.get();
+        if (song == null || lrcFile == null || !lrcFile.exists())
+            return;
+
+        try {
+            String content = java.nio.file.Files.readString(lrcFile.toPath(), java.nio.charset.StandardCharsets.UTF_8);
+            if (!content.trim().isEmpty()) {
+                song.setEmbeddedLyrics(content);
+                aura.music.library.DatabaseManager.getInstance().insertOrUpdateSong(song);
+                java.util.List<LyricLine> parsed = LyricParser.parse(content);
+                Platform.runLater(() -> {
+                    lyricsLines.setAll(parsed);
+                });
+            }
+        } catch (Exception e) {
+            System.err.println("Error reading manual lyric file: " + e.getMessage());
+        }
+    }
+
+    public void saveSyncedLrc(Song song, String lrcContent) {
+        if (song == null || lrcContent == null || lrcContent.trim().isEmpty())
+            return;
+
+        try {
+            song.setEmbeddedLyrics(lrcContent);
+            aura.music.library.DatabaseManager.getInstance().insertOrUpdateSong(song);
+
+            // Also save as .lrc file next to the local audio file
+            String path = song.getPath();
+            if (path != null && !path.startsWith("http://") && !path.startsWith("https://") && !path.startsWith("youtube:")) {
+                File audioFile = new File(path);
+                if (audioFile.exists() && audioFile.getParentFile() != null) {
+                    String baseName = audioFile.getName();
+                    int dotIdx = baseName.lastIndexOf('.');
+                    if (dotIdx != -1) baseName = baseName.substring(0, dotIdx);
+                    File lrcFile = new File(audioFile.getParentFile(), baseName + ".lrc");
+                    java.nio.file.Files.writeString(lrcFile.toPath(), lrcContent, java.nio.charset.StandardCharsets.UTF_8);
+                }
+            }
+
+            java.util.List<LyricLine> parsed = LyricParser.parse(lrcContent);
+            Platform.runLater(() -> {
+                lyricsLines.setAll(parsed);
+            });
+        } catch (Exception e) {
+            System.err.println("Failed to save synced LRC file: " + e.getMessage());
+        }
+    }
+
+    public IntegerProperty lyricTextSizeProperty() {
+        return libraryManager.lyricTextSizeProperty();
+    }
 
     // Navigation/Selection
     private final ObjectProperty<Playlist> selectedPlaylist = new SimpleObjectProperty<>();
     private final StringProperty searchQuery = new SimpleStringProperty("");
     private final ObservableList<Song> searchResults = FXCollections.observableArrayList();
+    private final StringProperty windowTitle = new SimpleStringProperty("AuraMusic Desktop");
+
+    public StringProperty windowTitleProperty() {
+        return windowTitle;
+    }
+
+    private final ExecutorService backgroundExecutor = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r);
+        t.setDaemon(true);
+        t.setName("AuraMusic-Background-Executor");
+        return t;
+    });
 
     public MainViewModel() {
-        // Initialize from LibraryManager
-        librarySongs.addAll(libraryManager.getSongs());
-        playlists.addAll(libraryManager.getPlaylists());
-
+        // Initialization is deferred to allow UI to show immediately.
         // Listen to changes in library
         libraryManager.addListener(new aura.music.library.LibraryManager.LibraryListener() {
             @Override
@@ -99,7 +196,7 @@ public class MainViewModel {
             public void onSongRemoved(Song song) {
                 Platform.runLater(() -> librarySongs.remove(song));
             }
-            
+
             @Override
             public void onSongUpdated(Song song) {
                 Platform.runLater(() -> {
@@ -110,12 +207,28 @@ public class MainViewModel {
                 });
             }
         });
-
-        libraryManager.loadSettings(); // Triggers loading folders and scanning
-
         // Bind volume
         volume.addListener((obs, oldVal, newVal) -> audioEngine.setVolume(newVal.doubleValue()));
         isMuted.addListener((obs, oldVal, newVal) -> audioEngine.setMuted(newVal));
+
+        // Ensure lyrics are always synced to the current time, regardless of the playback source
+        currentTime.addListener((obs, oldVal, newVal) -> {
+            updateActiveLyricIndex(newVal.doubleValue() * 1000.0);
+        });
+
+        // Smooth progress tracking using AnimationTimer (60fps)
+        javafx.animation.AnimationTimer progressTimer = new javafx.animation.AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                if (isPlaying.get() && !externalPlaybackActive) {
+                    double ms = audioEngine.getCurrentTime().toMillis();
+                    if (ms > 0) {
+                        currentTime.set(ms / 1000.0);
+                    }
+                }
+            }
+        };
+        progressTimer.start();
 
         // Connect AudioEngine listeners
         audioEngine.addOnReady(duration -> Platform.runLater(() -> {
@@ -125,16 +238,22 @@ public class MainViewModel {
         }));
 
         audioEngine.addOnProgress(duration -> Platform.runLater(() -> {
-            currentTime.set(duration.toSeconds());
-            updateActiveLyricIndex(duration.toMillis());
+            // currentTime is handled by AnimationTimer for smoother updates, 
+            // but we can still use this as a fallback.
         }));
 
         audioEngine.addOnEndOfMedia(() -> Platform.runLater(this::next));
 
-        // Sync initial volume
         volume.set(audioEngine.getVolume());
 
-        Platform.runLater(this::loadPlaybackState);
+        // Run Library initialization in the background
+        libraryManager.init().thenRun(() -> {
+            Platform.runLater(() -> {
+                librarySongs.addAll(libraryManager.getSongs());
+                playlists.addAll(libraryManager.getPlaylists());
+                loadPlaybackState();
+            });
+        });
     }
 
     public ObjectProperty<Song> currentSongProperty() {
@@ -185,8 +304,6 @@ public class MainViewModel {
         return currentQueueIndex;
     }
 
-
-
     public ObjectProperty<Playlist> selectedPlaylistProperty() {
         return selectedPlaylist;
     }
@@ -199,21 +316,28 @@ public class MainViewModel {
         return searchResults;
     }
 
-    /** Finds the user's local full track for an online catalog result, when available. */
+    /**
+     * Finds the user's local full track for an online catalog result, when
+     * available.
+     */
     public Song findLocalTrack(String title, String artist) {
         String wantedTitle = normalizeTrackText(title);
         String wantedArtist = normalizeTrackText(artist);
-        if (wantedTitle.isEmpty()) return null;
+        if (wantedTitle.isEmpty())
+            return null;
 
         for (Song song : librarySongs) {
-            if (!normalizeTrackText(song.getTitle()).equals(wantedTitle)) continue;
-            if (normalizeTrackText(song.getArtist()).equals(wantedArtist)) return song;
+            if (!normalizeTrackText(song.getTitle()).equals(wantedTitle))
+                continue;
+            if (normalizeTrackText(song.getArtist()).equals(wantedArtist))
+                return song;
         }
         return null;
     }
 
     private String normalizeTrackText(String value) {
-        if (value == null) return "";
+        if (value == null)
+            return "";
         return value.toLowerCase(java.util.Locale.ROOT)
                 .replaceAll("\\s*\\([^)]*\\)|\\s*\\[[^]]*]", "")
                 .replaceAll("[^a-z0-9]", "")
@@ -236,25 +360,27 @@ public class MainViewModel {
             }
         });
 
-        // Online previews are standalone streams, so ending a preview must not jump into
+        // Online previews are standalone streams, so ending a preview must not jump
+        // into
         // the user's local library queue.
         boolean onlinePreview = song.getPath().startsWith("http://") || song.getPath().startsWith("https://");
         if (onlinePreview) {
             queue.setAll(song);
             currentQueueIndex.set(0);
-        // If the song is already in queue, find its index. Otherwise, set up the queue.
+            // If the song is already in queue, find its index. Otherwise, set up the queue.
         } else {
-        int idx = queue.indexOf(song);
-        if (idx != -1) {
-            currentQueueIndex.set(idx);
-        } else {
-            // Set queue to library songs starting from this song as fallback
-            queue.setAll(librarySongs);
-            currentQueueIndex.set(queue.indexOf(song));
-        }
+            int idx = queue.indexOf(song);
+            if (idx != -1) {
+                currentQueueIndex.set(idx);
+            } else {
+                // Set queue to library songs starting from this song as fallback
+                queue.setAll(librarySongs);
+                currentQueueIndex.set(queue.indexOf(song));
+            }
         }
 
         currentSong.set(song);
+        updateThemeAndLyrics();
         audioEngine.play(song);
         // Update the filtered queue so that the current song appears first
         updateFilteredQueue();
@@ -265,6 +391,7 @@ public class MainViewModel {
             currentQueueIndex.set(index);
             Song song = queue.get(index);
             currentSong.set(song);
+            updateThemeAndLyrics();
             audioEngine.play(song);
             // Keep filtered queue in sync
             updateFilteredQueue();
@@ -370,7 +497,8 @@ public class MainViewModel {
         audioEngine.seek(seconds);
     }
 
-    public void startExternalPlayback(Song song, Runnable resume, Runnable pause, Runnable stop, Consumer<Double> seek) {
+    public void startExternalPlayback(Song song, Runnable resume, Runnable pause, Runnable stop,
+            Consumer<Double> seek) {
         stopExternalPlayback();
         // A provider-owned stream must never overlap the previously playing local file.
         audioEngine.stop();
@@ -388,13 +516,14 @@ public class MainViewModel {
         totalDuration.set(0);
         isPlaying.set(true);
         updateFilteredQueue();
-        loadExternalLyrics(song);
     }
 
     public void updateExternalPlayback(double position, double duration, boolean playing) {
-        if (!externalPlaybackActive) return;
+        if (!externalPlaybackActive)
+            return;
         currentTime.set(Math.max(0, position));
-        if (duration > 0) totalDuration.set(duration);
+        if (duration > 0)
+            totalDuration.set(duration);
         isPlaying.set(playing);
     }
 
@@ -408,12 +537,14 @@ public class MainViewModel {
     }
 
     private void stopExternalPlayback() {
-        if (!externalPlaybackActive) return;
+        if (!externalPlaybackActive)
+            return;
         Runnable stop = externalStop;
         externalPlaybackActive = false;
         externalResume = externalPause = externalStop = null;
         externalSeek = null;
-        if (stop != null) stop.run();
+        if (stop != null)
+            stop.run();
     }
 
     public void performSearch(String query) {
@@ -426,75 +557,116 @@ public class MainViewModel {
         if (song == null)
             return;
 
-        // 1. Update Theme from Album Art
-        Image onlineArtwork = song.getArtworkUrl() == null || song.getArtworkUrl().isBlank()
-                ? null : new Image(song.getArtworkUrl(), true);
-        byte[] artworkBytes = onlineArtwork == null ? aura.music.library.MetadataExtractor.extractArtworkBytes(song.getPath()) : null;
-        if (onlineArtwork != null || artworkBytes != null) {
-            Image image = onlineArtwork != null ? onlineArtwork : new Image(new ByteArrayInputStream(artworkBytes));
-            themeEngine.updateThemeFromImage(image);
-        } else {
-            themeEngine.updateThemeFromImage(null);
-        }
-
-        // 2. Load and Parse Lyrics
         lyricsLines.clear();
         activeLyricLineIndex.set(-1);
 
-        // Try embedded lyrics first
-        String lrcContent = song.getEmbeddedLyrics();
-        if (lrcContent != null && !lrcContent.trim().isEmpty()) {
-            lyricsLines.addAll(LyricParser.parse(lrcContent));
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            // 1. Update Theme from Album Art
+            Image cachedArtwork = aura.music.library.ArtworkCache.getInstance().getArtwork(song);
+
+            Platform.runLater(() -> {
+                if (currentSong.get() != song)
+                    return;
+                themeEngine.updateThemeFromImage(cachedArtwork);
+            });
+
+            // 2. Load Lyrics STRICTLY from Local Offline Library
+            // PRIORITY A: Check sidecar .lrc or .txt files on disk first (fresh from disk)
+            java.util.List<LyricLine> sidecarParsed = findOfflineSidecarLyrics(song);
+            if (!sidecarParsed.isEmpty()) {
+                Platform.runLater(() -> {
+                    if (currentSong.get() == song)
+                        lyricsLines.setAll(sidecarParsed);
+                });
+                return; // done
+            }
+
+            // PRIORITY B: Check embedded lyrics in audio file metadata / cached DB
+            String lrcContent = song.getEmbeddedLyrics();
+            if (lrcContent == null || lrcContent.trim().isEmpty()) {
+                Song freshMetadata = aura.music.library.MetadataExtractor.extract(new File(song.getPath()));
+                if (freshMetadata != null && freshMetadata.getEmbeddedLyrics() != null) {
+                    lrcContent = freshMetadata.getEmbeddedLyrics();
+                    song.setEmbeddedLyrics(lrcContent);
+                }
+            }
+
+            if (lrcContent != null && !lrcContent.trim().isEmpty()) {
+                java.util.List<LyricLine> parsed = LyricParser.parse(lrcContent);
+                if (!parsed.isEmpty()) {
+                    Platform.runLater(() -> {
+                        if (currentSong.get() == song)
+                            lyricsLines.setAll(parsed);
+                    });
+                    return;
+                }
+            }
+        }, backgroundExecutor);
+    }
+
+    private java.util.List<LyricLine> findOfflineSidecarLyrics(Song song) {
+        String songPath = song.getPath();
+        if (songPath == null || songPath.startsWith("http://") || songPath.startsWith("https://") || songPath.startsWith("youtube:")) {
+            return java.util.Collections.emptyList();
+        }
+        File audioFile = new File(songPath);
+        File parentDir = audioFile.getParentFile();
+        if (parentDir == null || !parentDir.exists()) return java.util.Collections.emptyList();
+
+        String baseName = audioFile.getName();
+        int dotIndex = baseName.lastIndexOf('.');
+        if (dotIndex != -1) {
+            baseName = baseName.substring(0, dotIndex);
         }
 
-        // Try external .lrc file in the same directory if no embedded lyrics were
-        // successfully parsed
-        if (lyricsLines.isEmpty()) {
-            String songPath = song.getPath();
-            int dotIndex = songPath.lastIndexOf('.');
-            if (dotIndex != -1) {
-                String lrcPath = songPath.substring(0, dotIndex) + ".lrc";
-                File lrcFile = new File(lrcPath);
-                if (lrcFile.exists()) {
-                    lyricsLines.addAll(LyricParser.parse(lrcFile));
+        List<File> candidates = new ArrayList<>();
+        // Same directory candidates
+        candidates.add(new File(parentDir, baseName + ".lrc"));
+        candidates.add(new File(parentDir, baseName + ".LRC"));
+        candidates.add(new File(parentDir, baseName + ".txt"));
+        candidates.add(new File(parentDir, baseName + ".TXT"));
+        if (song.getTitle() != null && !song.getTitle().isBlank()) {
+            candidates.add(new File(parentDir, song.getTitle() + ".lrc"));
+            candidates.add(new File(parentDir, song.getTitle() + ".LRC"));
+            candidates.add(new File(parentDir, song.getTitle() + ".txt"));
+        }
+
+        // Subfolders "lyrics" or "Lyrics"
+        File[] subdirs = new File[] { new File(parentDir, "lyrics"), new File(parentDir, "Lyrics") };
+        for (File subdir : subdirs) {
+            if (subdir.exists() && subdir.isDirectory()) {
+                candidates.add(new File(subdir, baseName + ".lrc"));
+                candidates.add(new File(subdir, baseName + ".LRC"));
+                candidates.add(new File(subdir, baseName + ".txt"));
+                if (song.getTitle() != null && !song.getTitle().isBlank()) {
+                    candidates.add(new File(subdir, song.getTitle() + ".lrc"));
+                    candidates.add(new File(subdir, song.getTitle() + ".txt"));
                 }
             }
         }
 
-        // Try fetching online if still empty
-        if (lyricsLines.isEmpty()) {
-            aura.music.lyrics.OnlineLyricsService.fetchLyricsAsync(song.getTitle(), song.getArtist(), song.getAlbum())
-                .thenAccept(lyrics -> {
-                    if (lyrics != null && !lyrics.isEmpty() && currentSong.get() == song) {
-                        javafx.application.Platform.runLater(() -> {
-                            lyricsLines.addAll(LyricParser.parse(lyrics));
-                        });
-                    }
-                });
+        for (File file : candidates) {
+            if (file.exists() && file.isFile()) {
+                java.util.List<LyricLine> parsed = LyricParser.parse(file);
+                if (!parsed.isEmpty()) return parsed;
+            }
         }
-    }
 
-    /** Loads publicly available synchronized lyrics for provider-owned streams when available. */
-    private void loadExternalLyrics(Song song) {
-        aura.music.lyrics.OnlineLyricsService.fetchLyricsAsync(song.getTitle(), song.getArtist(), song.getAlbum())
-                .thenAccept(lyrics -> {
-                    if (lyrics != null && !lyrics.isBlank() && currentSong.get() == song) {
-                        Platform.runLater(() -> {
-                            if (currentSong.get() == song) lyricsLines.setAll(LyricParser.parse(lyrics));
-                        });
-                    }
-                });
+        return java.util.Collections.emptyList();
     }
 
     private void updateActiveLyricIndex(double currentMs) {
         if (lyricsLines.isEmpty())
             return;
 
+        double adjustedMs = currentMs + (lyricSyncOffsetSeconds.get() * 1000.0);
+
         int activeIdx = -1;
         for (int i = 0; i < lyricsLines.size(); i++) {
-            if (currentMs >= lyricsLines.get(i).getTimestamp()) {
+            long ts = lyricsLines.get(i).getTimestamp();
+            if (ts >= 0 && adjustedMs >= ts) {
                 activeIdx = i;
-            } else {
+            } else if (ts >= 0 && adjustedMs < ts) {
                 break;
             }
         }
@@ -623,7 +795,8 @@ public class MainViewModel {
             if (state.repeatMode != null) {
                 try {
                     repeatMode.set(RepeatMode.valueOf(state.repeatMode));
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
             shuffleMode.set(state.shuffleMode);
 

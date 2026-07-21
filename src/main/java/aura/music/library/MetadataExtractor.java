@@ -160,13 +160,25 @@ public class MetadataExtractor {
         // Extract embedded lyrics, checking multiple common tag names
         String lyrics = tag.getFirst(FieldKey.LYRICS);
         if (lyrics == null || lyrics.trim().isEmpty()) {
+            lyrics = tag.getFirst("USLT");
+        }
+        if (lyrics == null || lyrics.trim().isEmpty()) {
             lyrics = tag.getFirst("UNSYNCEDLYRICS");
         }
         if (lyrics == null || lyrics.trim().isEmpty()) {
             lyrics = tag.getFirst("UNSYNCED LYRICS");
         }
         if (lyrics == null || lyrics.trim().isEmpty()) {
+            lyrics = tag.getFirst("SYNCEDLYRICS");
+        }
+        if (lyrics == null || lyrics.trim().isEmpty()) {
+            lyrics = tag.getFirst("SYNCED LYRICS");
+        }
+        if (lyrics == null || lyrics.trim().isEmpty()) {
             lyrics = tag.getFirst("LYRICS");
+        }
+        if (lyrics == null || lyrics.trim().isEmpty()) {
+            lyrics = tag.getFirst("ULT");
         }
         
         if (lyrics != null && !lyrics.trim().isEmpty()) {

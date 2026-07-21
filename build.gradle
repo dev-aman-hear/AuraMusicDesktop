@@ -5,13 +5,17 @@ plugins {
 }
 
 group 'aura.music'
-version '1.5.0'
+version '1.5.2'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    implementation('uk.co.caprica:vlcj:4.8.2') {
+        exclude group: 'net.java.dev.jna', module: 'jna-jpms'
+        exclude group: 'net.java.dev.jna', module: 'jna-platform-jpms'
+    }
     implementation 'net.jthink:jaudiotagger:3.0.1'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.jflac:jflac-codec:1.5.2'
@@ -21,7 +25,6 @@ dependencies {
     implementation 'net.java.dev.jna:jna:5.14.0'
     implementation 'net.java.dev.jna:jna-platform:5.14.0'
     implementation 'org.xerial:sqlite-jdbc:3.45.1.0'
-    implementation 'uk.co.caprica:vlcj:4.8.2'
     
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
@@ -59,7 +62,50 @@ tasks.register('copyVlcBinaries', Copy) {
     exclude 'skins/**'
     exclude 'locale/**'
     exclude 'doc/**'
+    exclude 'plugins/keystore/**'
+    exclude 'plugins/services_discovery/**'
+    exclude 'plugins/logger/**'
+    exclude 'plugins/control/**'
+    exclude 'plugins/spu/**'
+    exclude 'plugins/text_renderer/**'
+    exclude 'plugins/codec/libsub*'
+    exclude 'plugins/codec/libkate*'
+    exclude 'plugins/codec/libstl*'
+    exclude 'plugins/codec/libt140*'
+    exclude 'plugins/codec/libtextst*'
+    exclude 'plugins/codec/libttml*'
+    exclude 'plugins/codec/libwebvtt*'
+    exclude 'plugins/codec/libscte*'
+    exclude 'plugins/codec/libdvb*'
+    exclude 'plugins/codec/libcvd*'
+    exclude 'plugins/codec/libsvcd*'
+    exclude 'plugins/codec/libspudec*'
+    exclude 'plugins/codec/libcc*'
+    exclude 'plugins/codec/libd3d*'
+    exclude 'plugins/codec/libdxva2*'
+    exclude 'plugins/codec/libmft*'
+    exclude 'plugins/codec/librawvideo*'
+    exclude 'plugins/codec/librtpvideo*'
+    exclude 'plugins/codec/libsdl_image*'
+    exclude 'plugins/codec/liblibmpeg2*'
+    exclude 'plugins/codec/libcdg*'
 }
+
+def requiredModules = [
+    'java.base',
+    'java.desktop',
+    'java.logging',
+    'java.naming',
+    'java.sql',
+    'java.scripting',
+    'java.net.http',
+    'jdk.unsupported',
+    'javafx.controls',
+    'javafx.fxml',
+    'javafx.graphics',
+    'javafx.media',
+    'javafx.web'
+].join(',')
 
 tasks.register('packageAppImage', Exec) {
     dependsOn copyVlcBinaries
@@ -67,6 +113,7 @@ tasks.register('packageAppImage', Exec) {
     description = 'Packages the application as a Windows App Image.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
+        '--module-path', "${buildDir}/install/AuraMusicDesktop/lib",
         '--main-jar', "AuraMusicDesktop-${version}.jar",
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
@@ -75,6 +122,8 @@ tasks.register('packageAppImage', Exec) {
         '--dest', "${buildDir}/app-image",
         '--vendor', 'AuraMusic',
         '--app-version', "${version}",
+        '--add-modules', requiredModules,
+        '--jlink-options', '--strip-debug --no-header-files --no-man-pages --compress=zip-9',
         '--java-options', '-XX:+UseZGC -XX:+CompactStrings'
 }
 
@@ -84,6 +133,7 @@ tasks.register('packageExe', Exec) {
     description = 'Packages the application as a Windows EXE installer using jpackage.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
+        '--module-path', "${buildDir}/install/AuraMusicDesktop/lib",
         '--main-jar', "AuraMusicDesktop-${version}.jar",
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
@@ -97,6 +147,8 @@ tasks.register('packageExe', Exec) {
         '--win-upgrade-uuid', '8f7a9d2c-4e1b-4f3a-9e5c-6b7a8d9e0f1a',
         '--vendor', 'AuraMusic',
         '--app-version', "${version}",
+        '--add-modules', requiredModules,
+        '--jlink-options', '--strip-debug --no-header-files --no-man-pages --compress=zip-9',
         '--java-options', '-XX:+UseZGC -XX:+CompactStrings'
 }
 
@@ -106,6 +158,7 @@ tasks.register('packageMsi', Exec) {
     description = 'Packages the application as a Windows MSI installer using jpackage.'
     commandLine 'jpackage',
         '--input', "${buildDir}/install/AuraMusicDesktop/lib",
+        '--module-path', "${buildDir}/install/AuraMusicDesktop/lib",
         '--main-jar', "AuraMusicDesktop-${version}.jar",
         '--main-class', 'aura.music.Launcher',
         '--name', 'Aura Music Desktop',
@@ -119,6 +172,8 @@ tasks.register('packageMsi', Exec) {
         '--win-upgrade-uuid', '8f7a9d2c-4e1b-4f3a-9e5c-6b7a8d9e0f1a',
         '--vendor', 'AuraMusic',
         '--app-version', "${version}",
+        '--add-modules', requiredModules,
+        '--jlink-options', '--strip-debug --no-header-files --no-man-pages --compress=zip-9',
         '--java-options', '-XX:+UseZGC -XX:+CompactStrings'
 }
 

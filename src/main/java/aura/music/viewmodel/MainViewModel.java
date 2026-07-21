@@ -722,7 +722,7 @@ public class MainViewModel {
         if (song == null)
             return;
         song.setFavorite(!song.isFavorite());
-        libraryManager.saveLibraryToCache();
+        aura.music.library.DatabaseManager.getInstance().insertOrUpdateSong(song);
         favoritesVersion.set(favoritesVersion.get() + 1);
     }
 

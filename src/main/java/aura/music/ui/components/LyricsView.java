@@ -150,6 +150,7 @@ public class LyricsView extends StackPane {
             label.getStyleClass().add("lyric-line-label");
             label.setWrapText(true);
             label.setAlignment(Pos.CENTER);
+            label.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
             label.setMaxWidth(Double.MAX_VALUE);
 
             // Apple Music Font Styling
@@ -159,6 +160,7 @@ public class LyricsView extends StackPane {
                     "-fx-font-weight: 700; " +
                     "-fx-text-fill: rgba(255, 255, 255, 0.65); " +
                     "-fx-padding: 4px 12px; " +
+                    "-fx-text-alignment: center; " +
                     "-fx-font-size: " + baseFontSize + "px;"
             );
 
@@ -222,6 +224,7 @@ public class LyricsView extends StackPane {
                             "-fx-text-fill: #FFFFFF; " +
                             "-fx-background-color: transparent; " +
                             "-fx-padding: 4px 12px; " +
+                            "-fx-text-alignment: center; " +
                             "-fx-font-size: " + (viewModel.lyricTextSizeProperty().get() + 2) + "px;"
                     );
                     // Soft pure white ambient glow effect
@@ -240,6 +243,7 @@ public class LyricsView extends StackPane {
                             "-fx-background-color: transparent; " +
                             "-fx-border-color: transparent; " +
                             "-fx-padding: 4px 12px; " +
+                            "-fx-text-alignment: center; " +
                             "-fx-font-size: " + viewModel.lyricTextSizeProperty().get() + "px;"
                     );
                     label.setEffect(null);
@@ -253,6 +257,7 @@ public class LyricsView extends StackPane {
                             "-fx-background-color: transparent; " +
                             "-fx-border-color: transparent; " +
                             "-fx-padding: 4px 12px; " +
+                            "-fx-text-alignment: center; " +
                             "-fx-font-size: " + viewModel.lyricTextSizeProperty().get() + "px;"
                     );
                     label.setEffect(null);

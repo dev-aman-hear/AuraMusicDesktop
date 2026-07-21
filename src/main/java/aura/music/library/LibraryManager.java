@@ -193,11 +193,12 @@ public class LibraryManager {
     }
 
     public void addWatchedFolder(String path) {
-        if (watchedFolders.add(path)) {
+        if (!watchedFolders.contains(path)) {
+            watchedFolders.add(path);
             saveSettings();
-            scanFolderAsync(new File(path));
-            scanExecutor.submit(() -> registerWatchDir(Paths.get(path)));
         }
+        scanFolderAsync(new File(path));
+        scanExecutor.submit(() -> registerWatchDir(Paths.get(path)));
     }
 
     public void removeWatchedFolder(String path) {
@@ -315,6 +316,7 @@ public class LibraryManager {
                 listeners.forEach(l -> l.onSongAdded(song));
                 invalidateBrowseCatalogCache();
             } else if (existing.getLastModified() != song.getLastModified()) {
+                song.setFavorite(existing.isFavorite());
                 int index = songs.indexOf(existing);
                 if (index != -1) {
                     songs.set(index, song);

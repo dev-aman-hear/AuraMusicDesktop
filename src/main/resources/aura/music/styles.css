@@ -225,6 +225,8 @@
     -fx-text-fill: rgba(255, 255, 255, 0.3);
     -fx-transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     -fx-padding: 8px 0;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
 }
 
 .lyric-line-active {

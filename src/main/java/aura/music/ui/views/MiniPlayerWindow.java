@@ -1058,9 +1058,10 @@ public class MiniPlayerWindow extends Stage {
         for (int i = 0; i < lines.size(); i++) {
             LyricLine line = lines.get(i);
             Label label = new Label(line.getText());
-            label.setStyle("-fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 18px; -fx-font-weight: bold;");
+            label.setStyle("-fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-alignment: center;");
             label.setWrapText(true);
             label.setAlignment(Pos.CENTER);
+            label.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
             label.setMaxWidth(Double.MAX_VALUE);
 
             label.setOnMouseClicked(e -> {

@@ -2,6 +2,7 @@ package aura.music.ui.views;
 
 import aura.music.model.Song;
 import aura.music.viewmodel.MainViewModel;
+import aura.music.ui.components.SVGIcons;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -959,10 +960,10 @@ public class HomeView extends ScrollPane {
         importBtn.setOnAction(e -> {
             javafx.stage.DirectoryChooser chooser = new javafx.stage.DirectoryChooser();
             chooser.setTitle("Select Music Folder");
-            java.io.File selected = chooser.showDialog(getScene().getWindow());
+            javafx.stage.Window parentWindow = getScene() != null ? getScene().getWindow() : null;
+            java.io.File selected = chooser.showDialog(parentWindow);
             if (selected != null) {
                 aura.music.library.LibraryManager.getInstance().addWatchedFolder(selected.getAbsolutePath());
-                viewModel.getLibrarySongs().setAll(aura.music.library.LibraryManager.getInstance().getSongs());
             }
         });
 
@@ -1020,17 +1021,20 @@ public class HomeView extends ScrollPane {
                 createStatCard("Total Songs", String.format("%,d", songs.size()), "🎵"),
                 createStatCard("Artists", String.format("%,d", artists.size()), "🎤"),
                 createStatCard("Albums", String.format("%,d", albums.size()), "💿"),
-                createStatCard("Favorites", String.format("%,d", favCount), "❤️"));
+                createStatCard("Favorites", String.format("%,d", favCount), SVGIcons.createHeartIcon(18, Color.web("#FF4B4B"), true)));
     }
 
     private VBox createStatCard(String title, String value, String icon) {
+        Label iconLabel = new Label(icon);
+        iconLabel.setStyle("-fx-font-size: 18px;");
+        return createStatCard(title, value, (javafx.scene.Node) iconLabel);
+    }
+
+    private VBox createStatCard(String title, String value, javafx.scene.Node iconNode) {
         VBox card = new VBox(6);
         card.setPadding(new Insets(16, 22, 16, 22));
         card.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 14;");
         card.setMinWidth(140);
-
-        Label iconLabel = new Label(icon);
-        iconLabel.setStyle("-fx-font-size: 18px;");
 
         Label valLabel = new Label(value);
         valLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
@@ -1038,7 +1042,7 @@ public class HomeView extends ScrollPane {
         Label titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: rgba(255,255,255,0.5);");
 
-        card.getChildren().addAll(iconLabel, valLabel, titleLabel);
+        card.getChildren().addAll(iconNode, valLabel, titleLabel);
         return card;
     }
 }
